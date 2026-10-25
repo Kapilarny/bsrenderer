@@ -51,4 +51,10 @@ private:
         exit(1); \
     }
 
+#ifdef BSRENDERER_DEBUG
+#define DEBUG_ASSERT(cond, msg, ...) FATAL_ASSERT(cond, msg, ##__VA_ARGS__)
+#else
+#define DEBUG_ASSERT(cond, msg, ...)
+#endif
+
 #endif //BSRENDERER_LOG_H
