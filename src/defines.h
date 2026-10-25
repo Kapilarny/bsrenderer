@@ -20,11 +20,6 @@ using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 
 template<typename T>
-struct vec2 {
-    T x, y;
-};
-
-template<typename T>
 struct vec3 {
     T x, y, z;
 
@@ -37,6 +32,14 @@ struct vec3 {
         // DEBUG_ASSERT(i < 3, "vec3[] -> out of bounds subscript");
         return *(&x + i);
     }
+};
+
+template<typename T>
+struct vec2 {
+    T x, y;
+
+    vec2(T& x, T& y) : x(x), y(y) {}
+    vec2(const vec3<T>& v) : x(v.x), y(v.y) {}
 };
 
 #if defined(_WIN32)

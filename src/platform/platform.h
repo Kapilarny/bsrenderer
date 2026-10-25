@@ -12,6 +12,7 @@ class inner_framebuffer;
 class inner_window;
 class inner_platform;
 
+// TODO: make framebuffer take pixel format specification
 class framebuffer {
 public:
     void clear_buffer(u32 background) const;
@@ -37,6 +38,9 @@ class window {
 public:
     window(const std::string& name, window_options opts);
     ~window();
+
+    [[nodiscard]] i32 get_width() const;
+    [[nodiscard]] i32 get_height() const;
 
     framebuffer *begin_frame();
     void end_frame();

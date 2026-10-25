@@ -157,7 +157,7 @@ i32 framebuffer::get_width() const {
 
 class inner_window {
 public:
-    inner_window(const std::string& title, const window_options& opts) {
+    inner_window(const std::string& title, const window_options& opts) : width(opts.width), height(opts.height) {
         FATAL_ASSERT(wl_inst != nullptr, "platform_wayland: Wayland instance does not exist before creating window!");
 
         _surface = wl_compositor_create_surface(wl_inst->compositor);
@@ -187,6 +187,7 @@ public:
     }
 
     bool running = true;
+    i32 width, height;
 private:
     wl_surface* _surface;
     xdg_surface* _xdg_surface;
@@ -242,6 +243,14 @@ window::window(const std::string &name, window_options opts) {
 
 window::~window() {
     delete _inner;
+}
+
+i32 window::get_width() const {
+    return _inner->width;
+}
+
+i32 window::get_height() const {
+    return _inner->height;
 }
 
 void window::_run_preframe_events() {

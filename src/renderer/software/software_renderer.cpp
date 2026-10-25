@@ -4,12 +4,14 @@
 
 #include "software_renderer.h"
 
+#include <cstring>
+
 #include "platform/platform.h"
 #include "util/log.h"
 #include "util/model.h"
 
-software_renderer::software_renderer(window *window) : renderer(window) {
-}
+software_renderer::software_renderer(window *window)
+    : renderer(window), _depth_buffer(depth_buffer(window->get_width(), window->get_height())) {}
 
 software_renderer::~software_renderer() {
     // TODO: destroy shi
@@ -17,7 +19,7 @@ software_renderer::~software_renderer() {
 
 void software_renderer::begin_frame() {
     _fb = _window->begin_frame();
-    // _fb->clear_buffer(0xFF000000);
+    _depth_buffer.clear();
 }
 
 void software_renderer::end_frame() {
@@ -40,11 +42,12 @@ void software_renderer::draw_model(model &model) {
     constexpr auto clr_red = color(0xFF0000);
 
     // Coords are between [-1, 1] so we have to normalize them
-    auto vertex_to_screen = [width, height](const vec3<double> vertex) -> vec2<i32> {
+    auto vertex_to_screen = [width, height](const vec3<double> &vertex) -> vec3<i32> {
         i32 x = (vertex.x+1.0)/2.0 * (width);
         i32 y = (vertex.y+1.0)/2.0 * (height);
+        i32 z = (vertex.z+1.0)/2.0 * 255;
 
-        return vec2<i32>(x,y);
+        return vec3<i32>(x,y,z);
     };
 
     // indices!
@@ -54,30 +57,32 @@ void software_renderer::draw_model(model &model) {
         const auto p2 = vertex_to_screen(model._vertices[indices.y]);
         const auto p3 = vertex_to_screen(model._vertices[indices.z]);
 
-        // _draw_line(p1, p2, clr_red.to_argb());
-        // _draw_line(p2, p3, clr_red.to_argb());
-        // _draw_line(p3, p1, clr_red.to_argb());
-
         auto clr = color(rand() % 0xFFFFFF);
 
         draw_triangle({p1, p2, p3}, clr);
     }
 }
 
-void software_renderer::draw_triangle(vec3<vec2<i32>> points, color clr) {
+void software_renderer::draw_triangle(vec3<vec3<i32>> points, color clr) {
     auto [p1, p2, p3] = points;
-    const i32 b_xstart = std::min(p1.x, std::min(p2.x, p3.x));
-    const i32 b_xend = std::max(p1.x, std::max(p2.x, p3.x));
-    const i32 b_ystart = std::min(p1.y, std::min(p2.y, p3.y));
-    const i32 b_yend = std::max(p1.y, std::max(p2.y, p3.y));
-
-    const vec3<i32> d = {25, 100, 255};
+    i32 b_xstart = std::min(p1.x, std::min(p2.x, p3.x));
+    i32 b_xend = std::max(p1.x, std::max(p2.x, p3.x));
+    i32 b_ystart = std::min(p1.y, std::min(p2.y, p3.y));
+    i32 b_yend = std::max(p1.y, std::max(p2.y, p3.y));
 
     auto triangle_area = [](const vec2<i32> a, const vec2<i32> b, const vec2<i32> c) -> double {
         return 0.5 * ((b.y-a.y)*(b.x+a.x)+(c.y-b.y)*(c.x+b.x)+(a.y-c.y)*(a.x+c.x));
     };
     const auto area = triangle_area(p1, p2, p3);
     if (area < 1) return; // back
+
+    const auto w = _fb->get_width();
+    const auto h = _fb->get_height();
+
+    b_xstart = std::max(0, b_xstart);
+    b_xend = std::min(w-1, b_xend);
+    b_ystart = std::max(0, b_ystart);
+    b_yend = std::min(h-1, b_yend);
 
 #pragma omp parallel for
     for (int x = b_xstart; x <= b_xend; x++) {
@@ -87,10 +92,11 @@ void software_renderer::draw_triangle(vec3<vec2<i32>> points, color clr) {
             const auto gamma = triangle_area({x, y}, p1, p2) / area;
 
             if (alpha < 0 || beta < 0 || gamma < 0) continue;
+            u8 z = p1.z * alpha + p2.z * beta + p3.z * gamma;
+            if (_depth_buffer.at(x, y) >= z) continue;
+            _depth_buffer.at(x, y) = z;
 
-            if (alpha >= 0.1 && beta >= 0.1 && gamma >= 0.1) continue;
-
-            auto interpolated = color(clr.r * alpha, clr.g * beta, clr.g * gamma);
+            auto interpolated = color(z, z, z);
             _draw_dot(x, y, interpolated.to_argb());
         }
     }
@@ -124,7 +130,6 @@ void software_renderer::_draw_line(vec2<i32> p1, vec2<i32> p2, u32 color) const 
     }
 }
 
-
 void software_renderer::_draw_dot(const u32 x, u32 y, const u32 color) const {
     const auto width = _fb->get_width();
     const auto height = _fb->get_height();
@@ -132,4 +137,15 @@ void software_renderer::_draw_dot(const u32 x, u32 y, const u32 color) const {
     if (x >= width || y >= height) return;
     y = height-y-1;
     _fb->get_pixels()[y*_fb->get_width() + x] = color;
+}
+
+depth_buffer::depth_buffer(i32 w, i32 h) : w(w), h(h), _buffer(w*h) {
+}
+
+void depth_buffer::clear() {
+    memset(_buffer.data(), 0, w*h);
+}
+
+u8& depth_buffer::at(i32 x, i32 y) {
+    return _buffer[y*w + x];
 }
