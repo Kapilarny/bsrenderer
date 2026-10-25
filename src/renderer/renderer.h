@@ -23,6 +23,8 @@ struct color {
         r = rgb_hex >> 16;
     }
 
+    explicit constexpr color(const u32 r, const u32 g, const u32 b) : r(r), g(g), b(b), a(255) {}
+
     [[nodiscard]] u32 to_argb() const {
         return a << 24 | r << 16 | g << 8 | b;
     }

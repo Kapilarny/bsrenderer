@@ -48,59 +48,50 @@ void software_renderer::draw_model(model &model) {
     };
 
     // indices!
+    srand(0);
     for (const auto indices : model._indices) {
         const auto p1 = vertex_to_screen(model._vertices[indices.x]);
         const auto p2 = vertex_to_screen(model._vertices[indices.y]);
         const auto p3 = vertex_to_screen(model._vertices[indices.z]);
 
-        _draw_line(p1, p2, clr_red.to_argb());
-        _draw_line(p2, p3, clr_red.to_argb());
-        _draw_line(p3, p1, clr_red.to_argb());
-    }
+        // _draw_line(p1, p2, clr_red.to_argb());
+        // _draw_line(p2, p3, clr_red.to_argb());
+        // _draw_line(p3, p1, clr_red.to_argb());
 
-    for (const auto vertex : model._vertices) {
-        const auto [x, y] = vertex_to_screen(vertex);
-        _draw_dot(x, y, clr_white.to_argb());
+        auto clr = color(rand() % 0xFFFFFF);
+
+        draw_triangle({p1, p2, p3}, clr);
     }
 }
 
 void software_renderer::draw_triangle(vec3<vec2<i32>> points, color clr) {
     auto [p1, p2, p3] = points;
-    if (p1.y > p2.y) { std::swap(p1, p2); }
-    if (p1.y > p3.y) { std::swap(p1, p3); }
-    if (p2.y > p3.y) { std::swap(p2, p3); }
+    const i32 b_xstart = std::min(p1.x, std::min(p2.x, p3.x));
+    const i32 b_xend = std::max(p1.x, std::max(p2.x, p3.x));
+    const i32 b_ystart = std::min(p1.y, std::min(p2.y, p3.y));
+    const i32 b_yend = std::max(p1.y, std::max(p2.y, p3.y));
 
-    const i32 height = p3.y - p1.y;
+    const vec3<i32> d = {25, 100, 255};
 
-    // lower half
-    if (p1.y != p2.y) {
-        const i32 segment_h = p2.y - p1.y;
-        for (i32 y = p1.y; y <= p2.y; y++) {
-            auto x1 = p1.x + (p3.x - p1.x) * (y - p1.y) / height;
-            auto x2 = p1.x + (p2.x - p1.x) * (y - p1.y) / segment_h;
+    auto triangle_area = [](const vec2<i32> a, const vec2<i32> b, const vec2<i32> c) -> double {
+        return 0.5 * ((b.y-a.y)*(b.x+a.x)+(c.y-b.y)*(c.x+b.x)+(a.y-c.y)*(a.x+c.x));
+    };
+    const auto area = triangle_area(p1, p2, p3);
+    if (area < 1) return; // back
 
-            if (x1 > x2) {
-                std::swap(x1, x2);
-            }
+#pragma omp parallel for
+    for (int x = b_xstart; x <= b_xend; x++) {
+        for (int y = b_ystart; y <= b_yend; y++) {
+            const auto alpha = triangle_area({x, y}, p2, p3) / area;
+            const auto beta = triangle_area({x, y}, p3, p1) / area;
+            const auto gamma = triangle_area({x, y}, p1, p2) / area;
 
-            for (int x = x1; x <= x2; x++) {
-                _draw_dot(x, y, clr.to_argb());
-            }
-        }
-    }
+            if (alpha < 0 || beta < 0 || gamma < 0) continue;
 
-    // upper
-    const i32 segment_h = p3.y - p2.y;
-    for (i32 y = p2.y; y <= p3.y; y++) {
-        auto x1 = p1.x + (p3.x - p1.x) * (y - p1.y) / height;
-        auto x2 = p2.x + (p3.x - p2.x) * (y - p2.y) / segment_h;
+            if (alpha >= 0.1 && beta >= 0.1 && gamma >= 0.1) continue;
 
-        if (x1 > x2) {
-            std::swap(x1, x2);
-        }
-
-        for (int x = x1; x <= x2; x++) {
-            _draw_dot(x, y, clr.to_argb());
+            auto interpolated = color(clr.r * alpha, clr.g * beta, clr.g * gamma);
+            _draw_dot(x, y, interpolated.to_argb());
         }
     }
 }
@@ -139,6 +130,6 @@ void software_renderer::_draw_dot(const u32 x, u32 y, const u32 color) const {
     const auto height = _fb->get_height();
 
     if (x >= width || y >= height) return;
-    y = height-y;
+    y = height-y-1;
     _fb->get_pixels()[y*_fb->get_width() + x] = color;
 }
