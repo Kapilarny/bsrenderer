@@ -42,6 +42,7 @@ public:
     virtual void clear_screen(color clr) = 0;
 
     virtual void draw_model(model& model) = 0;
+    virtual void draw_triangle(vec3<vec2<i32>> points, color clr) = 0;
 protected:
     window* _window;
 };

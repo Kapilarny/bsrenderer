@@ -41,9 +41,8 @@ void software_renderer::draw_model(model &model) {
 
     // Coords are between [-1, 1] so we have to normalize them
     auto vertex_to_screen = [width, height](const vec3<double> vertex) -> vec2<i32> {
-        i32 x = (vertex.x+1.0)/2.0 * (width-1);
-        i32 y = (vertex.y+1.0)/2.0 * (height-1);
-        y = height-1-y; // flip y
+        i32 x = (vertex.x+1.0)/2.0 * (width);
+        i32 y = (vertex.y+1.0)/2.0 * (height);
 
         return vec2<i32>(x,y);
     };
@@ -65,12 +64,45 @@ void software_renderer::draw_model(model &model) {
     }
 }
 
-void software_renderer::_draw_dot(const u32 x, const u32 y, const u32 color) const {
-    const auto width = _fb->get_width();
-    const auto height = _fb->get_height();
+void software_renderer::draw_triangle(vec3<vec2<i32>> points, color clr) {
+    auto [p1, p2, p3] = points;
+    if (p1.y > p2.y) { std::swap(p1, p2); }
+    if (p1.y > p3.y) { std::swap(p1, p3); }
+    if (p2.y > p3.y) { std::swap(p2, p3); }
 
-    DEBUG_ASSERT(x < width && y < height, "software_renderer::_draw_dot() -> Out of bounds dot draw");
-    _fb->get_pixels()[y*_fb->get_width() + x] = color;
+    const i32 height = p3.y - p1.y;
+
+    // lower half
+    if (p1.y != p2.y) {
+        const i32 segment_h = p2.y - p1.y;
+        for (i32 y = p1.y; y <= p2.y; y++) {
+            auto x1 = p1.x + (p3.x - p1.x) * (y - p1.y) / height;
+            auto x2 = p1.x + (p2.x - p1.x) * (y - p1.y) / segment_h;
+
+            if (x1 > x2) {
+                std::swap(x1, x2);
+            }
+
+            for (int x = x1; x <= x2; x++) {
+                _draw_dot(x, y, clr.to_argb());
+            }
+        }
+    }
+
+    // upper
+    const i32 segment_h = p3.y - p2.y;
+    for (i32 y = p2.y; y <= p3.y; y++) {
+        auto x1 = p1.x + (p3.x - p1.x) * (y - p1.y) / height;
+        auto x2 = p2.x + (p3.x - p2.x) * (y - p2.y) / segment_h;
+
+        if (x1 > x2) {
+            std::swap(x1, x2);
+        }
+
+        for (int x = x1; x <= x2; x++) {
+            _draw_dot(x, y, clr.to_argb());
+        }
+    }
 }
 
 void software_renderer::_draw_line(vec2<i32> p1, vec2<i32> p2, u32 color) const {
@@ -99,4 +131,14 @@ void software_renderer::_draw_line(vec2<i32> p1, vec2<i32> p2, u32 color) const 
         y += (p2.y > p1.y ? 1 : -1) * (error > p2.x - p1.x);
         error -= 2 * (p2.x - p1.x) * (error > p2.x - p1.x);
     }
+}
+
+
+void software_renderer::_draw_dot(const u32 x, u32 y, const u32 color) const {
+    const auto width = _fb->get_width();
+    const auto height = _fb->get_height();
+
+    if (x >= width || y >= height) return;
+    y = height-y;
+    _fb->get_pixels()[y*_fb->get_width() + x] = color;
 }
