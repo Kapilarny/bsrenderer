@@ -9,7 +9,7 @@
 
 #include "platform/platform.h"
 
-void platform::log_output(const char *str, bool is_error, ForegroundConsoleColor foreground, BackgroundConsoleColor background) {
+void platform::log_output(const char *str, bool is_error, foreground_console_color foreground, background_console_color background) {
     constexpr const char* foreground_codes[] = {
         "\033[39m",
         "\033[97m",

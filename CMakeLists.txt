@@ -21,6 +21,12 @@ add_executable(bsrenderer src/main.cpp
         src/renderer/software/software_renderer.cpp
         src/renderer/software/software_renderer.h
         src/renderer/renderer.cpp
+        src/math/bmath.h
+        src/math/vec.h
+        src/math/mat.h
+        src/platform/window.h
+        src/platform/framebuffer.h
+        src/platform/input.h
 )
 
 target_include_directories(bsrenderer PUBLIC "src/")

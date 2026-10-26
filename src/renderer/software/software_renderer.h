@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "renderer/renderer.h"
+#include "math/bmath.h"
 
 // TODO: Integrate this with framebuffer
 class depth_buffer {
@@ -15,9 +16,9 @@ public:
     depth_buffer(i32 w, i32 h);
     void clear();
 
-    u8& at(i32 x, i32 y);
+    float& at(i32 x, i32 y);
 private:
-    std::vector<u8> _buffer;
+    std::vector<float> _buffer;
     i32 w, h;
 };
 

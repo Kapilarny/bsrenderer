@@ -10,11 +10,15 @@
 
 #include "defines.h"
 
+#include "math/vec.h"
+
 class framebuffer;
 
 class model {
 public:
     explicit model(const std::string& model_path);
+
+    double rotation = 0; // TODO: remove this lol
 private:
     friend class waveform_parser;
     friend class software_renderer; // todo: maybe don't do that?

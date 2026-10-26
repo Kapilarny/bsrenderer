@@ -5,10 +5,13 @@
 #include "software_renderer.h"
 
 #include <cstring>
+#include <math.h>
 
 #include "platform/platform.h"
 #include "util/log.h"
 #include "util/model.h"
+
+#include "math/bmath.h"
 
 software_renderer::software_renderer(window *window)
     : renderer(window), _depth_buffer(depth_buffer(window->get_width(), window->get_height())) {}
@@ -42,20 +45,32 @@ void software_renderer::draw_model(model &model) {
     constexpr auto clr_red = color(0xFF0000);
 
     // Coords are between [-1, 1] so we have to normalize them
-    auto vertex_to_screen = [width, height](const vec3<double> &vertex) -> vec3<i32> {
+    auto ortho = [width, height](const vec3<double> &vertex) -> vec3<i32> {
         i32 x = (vertex.x+1.0)/2.0 * (width);
         i32 y = (vertex.y+1.0)/2.0 * (height);
         i32 z = (vertex.z+1.0)/2.0 * 255;
 
-        return vec3<i32>(x,y,z);
+        return {x,y,z};
+    };
+
+    auto persp = [ortho](const vec3<double>& v) -> vec3<int> {
+        double c = 3.0;
+        return ortho(v / (1-v.z/c));
+    };
+
+    auto rotate = [model](const vec3<double>& v) {
+        // constexpr double a = M_PI/6;
+        double a = model.rotation;
+        const mat<3,3> R = {{std::cos(a), 0, std::sin(a), 0, 1, 0, -std::sin(a), 0, std::cos(a)}};
+        return R*v;
     };
 
     // indices!
     srand(0);
-    for (const auto indices : model._indices) {
-        const auto p1 = vertex_to_screen(model._vertices[indices.x]);
-        const auto p2 = vertex_to_screen(model._vertices[indices.y]);
-        const auto p3 = vertex_to_screen(model._vertices[indices.z]);
+    for (const auto& indices : model._indices) {
+        const auto p1 = persp(rotate(model._vertices[indices.x]));
+        const auto p2 = persp(rotate(model._vertices[indices.y]));
+        const auto p3 = persp(rotate(model._vertices[indices.z]));
 
         auto clr = color(rand() % 0xFFFFFF);
 
@@ -64,13 +79,13 @@ void software_renderer::draw_model(model &model) {
 }
 
 void software_renderer::draw_triangle(vec3<vec3<i32>> points, color clr) {
-    auto [p1, p2, p3] = points;
+    auto [p1, p2, p3] = points.data;
     i32 b_xstart = std::min(p1.x, std::min(p2.x, p3.x));
     i32 b_xend = std::max(p1.x, std::max(p2.x, p3.x));
     i32 b_ystart = std::min(p1.y, std::min(p2.y, p3.y));
     i32 b_yend = std::max(p1.y, std::max(p2.y, p3.y));
 
-    auto triangle_area = [](const vec2<i32> a, const vec2<i32> b, const vec2<i32> c) -> double {
+    auto triangle_area = [](const vec2<i32>& a, const vec2<i32>& b, const vec2<i32>& c) -> double {
         return 0.5 * ((b.y-a.y)*(b.x+a.x)+(c.y-b.y)*(c.x+b.x)+(a.y-c.y)*(a.x+c.x));
     };
     const auto area = triangle_area(p1, p2, p3);
@@ -92,12 +107,12 @@ void software_renderer::draw_triangle(vec3<vec3<i32>> points, color clr) {
             const auto gamma = triangle_area({x, y}, p1, p2) / area;
 
             if (alpha < 0 || beta < 0 || gamma < 0) continue;
-            u8 z = p1.z * alpha + p2.z * beta + p3.z * gamma;
+            float z = p1.z * alpha + p2.z * beta + p3.z * gamma;
             if (_depth_buffer.at(x, y) >= z) continue;
             _depth_buffer.at(x, y) = z;
 
             auto interpolated = color(z, z, z);
-            _draw_dot(x, y, interpolated.to_argb());
+            _draw_dot(x, y, clr.to_argb());
         }
     }
 }
@@ -143,9 +158,9 @@ depth_buffer::depth_buffer(i32 w, i32 h) : w(w), h(h), _buffer(w*h) {
 }
 
 void depth_buffer::clear() {
-    memset(_buffer.data(), 0, w*h);
+    memset(_buffer.data(), 0, w*h*sizeof(_buffer[0]));
 }
 
-u8& depth_buffer::at(i32 x, i32 y) {
+float& depth_buffer::at(i32 x, i32 y) {
     return _buffer[y*w + x];
 }

@@ -10,6 +10,7 @@
 
 #include "platform/platform.h"
 
+#include <linux/input-event-codes.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
 #include "xdg-shell-client-protocol.h"
@@ -17,6 +18,8 @@
 #include "util/log.h"
 
 constexpr u32 WL_COMPOSITOR_VERSION_TARGET = 4;
+
+keyboard_key translate_key_from_wayland_key(u32 key);
 
 class wayland {
 public:
@@ -28,7 +31,7 @@ public:
         wl_registry_add_listener(registry, &_registry_listener, this);
 
         FATAL_ASSERT(wl_display_roundtrip(display) > 0, "platform_wayland: Failed display roundtrip.");
-        FATAL_ASSERT(compositor || shm || wm_base, "platform_wayland: Required Wayland interfaces unavailable.");
+        FATAL_ASSERT(compositor || shm || wm_base || seat, "platform_wayland: Required Wayland interfaces unavailable.");
     }
 
     void process_pending_events() const {
@@ -44,6 +47,7 @@ public:
     wl_compositor* compositor{};
     wl_shm* shm{};
     xdg_wm_base* wm_base{};
+    wl_seat* seat{};
 private:
     static void _registry_global(
         void* data,
@@ -52,11 +56,9 @@ private:
         const char* interface,
         u32 version);
 
-    static void _registry_remove(void*, wl_registry*, uint32_t);
-
     static constexpr wl_registry_listener _registry_listener = {
-        _registry_global,
-        _registry_remove
+        .global = _registry_global,
+        .global_remove = [](void*, wl_registry*, u32) {}
     };
 };
 
@@ -107,7 +109,25 @@ public:
     u32* pixels;
     bool busy = false;
 private:
-    static i32 _create_shm_file(u64 size);
+    static i32 _create_shm_file(u64 size) {
+        char path[] = "/tmp/bs-renderer-XXXXXX";
+        const i32 fd = mkstemp(path);
+        if (fd < 0) {
+            log::error("platform_wayland: Failed to create a temp file for shm.");
+            return -1;
+        }
+
+        unlink(path);
+
+        if (size > static_cast<u64>(std::numeric_limits<off_t>::max())
+            || ftruncate(fd, static_cast<off_t>(size)) < 0) {
+            close(fd);
+            log::error("platform_wayland: Failed to create a temp file for shm.");
+            return -1;
+        }
+
+        return fd;
+    }
 
     static void _buffer_release(void* data, wl_buffer*) {
         auto* inner = static_cast<inner_framebuffer*>(data);
@@ -119,45 +139,10 @@ private:
     };
 };
 
-i32 inner_framebuffer::_create_shm_file(u64 size) {
-    char path[] = "/tmp/bs-renderer-XXXXXX";
-    const i32 fd = mkstemp(path);
-    if (fd < 0) {
-        log::error("platform_wayland: Failed to create a temp file for shm.");
-        return -1;
-    }
-
-    unlink(path);
-
-    if (size > static_cast<u64>(std::numeric_limits<off_t>::max())
-        || ftruncate(fd, static_cast<off_t>(size)) < 0) {
-        close(fd);
-        log::error("platform_wayland: Failed to create a temp file for shm.");
-        return -1;
-    }
-
-    return fd;
-}
-
-framebuffer::framebuffer(const i32 width, const i32 height) {
-    _inner = new inner_framebuffer(width, height);
-}
-
-u32 *framebuffer::get_pixels() const {
-    return _inner->pixels;
-}
-
-i32 framebuffer::get_height() const {
-    return _inner->height;
-}
-
-i32 framebuffer::get_width() const {
-    return _inner->width;
-}
-
 class inner_window {
 public:
-    inner_window(const std::string& title, const window_options& opts) : width(opts.width), height(opts.height) {
+    inner_window(const std::string& title, const window_options& opts, window* frontend)
+        : width(opts.width), height(opts.height), _frontend(frontend) {
         FATAL_ASSERT(wl_inst != nullptr, "platform_wayland: Wayland instance does not exist before creating window!");
 
         _surface = wl_compositor_create_surface(wl_inst->compositor);
@@ -172,6 +157,10 @@ public:
 
         xdg_toplevel_set_min_size(_xdg_toplevel, opts.width, opts.height);
         xdg_toplevel_set_max_size(_xdg_toplevel, opts.width, opts.height);
+
+        // input
+        _keyboard = wl_seat_get_keyboard(wl_inst->seat);
+        wl_keyboard_add_listener(_keyboard, &_wl_keyboard_listener, this);
 
         wl_surface_commit(_surface);
 
@@ -189,33 +178,27 @@ public:
     bool running = true;
     i32 width, height;
 private:
+    window* _frontend;
     wl_surface* _surface;
+    wl_keyboard* _keyboard;
     xdg_surface* _xdg_surface;
     xdg_toplevel* _xdg_toplevel;
 
     bool _configured = false;
 
-    static void _wm_base_ping(
-        void*,
-        xdg_wm_base* wm_base,
-        const u32 serial) {
+    static void _wm_base_ping(void*,xdg_wm_base* wm_base,const u32 serial) {
         xdg_wm_base_pong(wm_base, serial);
     }
-
     static constexpr xdg_wm_base_listener _wm_base_listener = {
         _wm_base_ping
     };
 
-    static void _surface_configure(
-    void* data,
-    xdg_surface* surface,
-    const u32 serial) {
+    static void _surface_configure(void* data,xdg_surface* surface,const u32 serial) {
         auto* inner = static_cast<inner_window*>(data);
 
         xdg_surface_ack_configure(surface, serial);
         inner->_configured = true;
     }
-
     static constexpr xdg_surface_listener _xdg_surface_listener = {
         _surface_configure
     };
@@ -224,19 +207,36 @@ private:
         auto* inner = static_cast<inner_window*>(data);
         inner->running = false;
     }
-
     static void _toplevel_configure(void* data, xdg_toplevel* toplevel, i32 w, i32 h, wl_array* states) {
 
     }
-
     static constexpr xdg_toplevel_listener _xdg_toplevel_listener = {
         .configure = _toplevel_configure,
         .close = _toplevel_close
     };
+
+    static void _wl_keyboard_key_event(void* data, wl_keyboard*, u32 serial, u32 time, u32 key, u32 state) {
+        auto* inner = static_cast<inner_window*>(data);
+
+        const auto translated = translate_key_from_wayland_key(key);
+        auto& input = inner->_frontend->get_input();
+        if (state == WL_KEYBOARD_KEY_STATE_PRESSED || state == WL_KEYBOARD_KEY_STATE_REPEATED) {
+            input._press_key(translated);
+        } else {
+            input._release_key(translated);
+        }
+    }
+    static constexpr wl_keyboard_listener _wl_keyboard_listener = {
+        .keymap = [](void*, wl_keyboard*, u32, i32, u32) {},
+        .enter = [](void*, wl_keyboard*, u32, wl_surface*, wl_array*) {},
+        .leave = [](void*, wl_keyboard*, u32, wl_surface*) {},
+        .key = _wl_keyboard_key_event,
+        .modifiers = [](void*, wl_keyboard*, u32, u32, u32, u32, u32) {}
+    };
 };
 
-window::window(const std::string &name, window_options opts) {
-    _inner = new inner_window(name, opts);
+window::window(const std::string &name, const window_options opts) {
+    _inner = new inner_window(name, opts, this);
     _framebuffers[0] = new framebuffer(opts.width, opts.height);
     _framebuffers[1] = new framebuffer(opts.width, opts.height);
 }
@@ -254,6 +254,7 @@ i32 window::get_height() const {
 }
 
 void window::_run_preframe_events() {
+    _input._update_key_states();
     wl_inst->process_pending_events();
 }
 
@@ -279,6 +280,10 @@ bool window::should_close() const {
     return !_inner->running;
 }
 
+input & window::get_input() {
+    return _input;
+}
+
 void wayland::_registry_global(void *data, wl_registry *registry, u32 name, const char *interface, u32 version) {
     auto* inner = static_cast<wayland*>(data);
 
@@ -297,14 +302,74 @@ void wayland::_registry_global(void *data, wl_registry *registry, u32 name, cons
             wl_registry_bind(registry, name, &xdg_wm_base_interface,
                 std::min(version, 1u))
         );
+    } else if (std::strcmp(interface, wl_seat_interface.name) == 0) {
+        inner->seat = static_cast<wl_seat*>(
+            wl_registry_bind(registry, name, &wl_seat_interface,
+                std::min(version, 1u))
+        );
     }
-}
-
-void wayland::_registry_remove(void *data, wl_registry *registry, uint32_t name) {
 }
 
 void platform::init() {
     wl_inst = new wayland();
 }
 
+framebuffer::framebuffer(const i32 width, const i32 height) {
+    _inner = new inner_framebuffer(width, height);
+}
+
+u32 *framebuffer::get_pixels() const {
+    return _inner->pixels;
+}
+
+i32 framebuffer::get_height() const {
+    return _inner->height;
+}
+
+i32 framebuffer::get_width() const {
+    return _inner->width;
+}
+
+keyboard_key translate_key_from_wayland_key(const u32 key) {
+    switch (key) {
+        case KEY_A: return keyboard_key::A;
+        case KEY_B: return keyboard_key::B;
+        case KEY_C: return keyboard_key::C;
+        case KEY_D: return keyboard_key::D;
+        case KEY_E: return keyboard_key::E;
+        case KEY_F: return keyboard_key::F;
+        case KEY_G: return keyboard_key::G;
+        case KEY_H: return keyboard_key::H;
+        case KEY_I: return keyboard_key::I;
+        case KEY_J: return keyboard_key::J;
+        case KEY_K: return keyboard_key::K;
+        case KEY_L: return keyboard_key::L;
+        case KEY_M: return keyboard_key::M;
+        case KEY_N: return keyboard_key::N;
+        case KEY_O: return keyboard_key::O;
+        case KEY_P: return keyboard_key::P;
+        case KEY_Q: return keyboard_key::Q;
+        case KEY_R: return keyboard_key::R;
+        case KEY_S: return keyboard_key::S;
+        case KEY_T: return keyboard_key::T;
+        case KEY_U: return keyboard_key::U;
+        case KEY_V: return keyboard_key::V;
+        case KEY_W: return keyboard_key::W;
+        case KEY_X: return keyboard_key::X;
+        case KEY_Y: return keyboard_key::Y;
+        case KEY_Z: return keyboard_key::Z;
+
+        case KEY_SPACE:         return keyboard_key::SPACE;
+        case KEY_ESC:           return keyboard_key::ESCAPE;
+        case KEY_ENTER:         return keyboard_key::ENTER;
+        case KEY_LEFTSHIFT:     return keyboard_key::L_SHIFT;
+        case KEY_RIGHTSHIFT:    return keyboard_key::R_SHIFT;
+        case KEY_LEFTCTRL:      return keyboard_key::L_CTRL;
+        case KEY_RIGHTCTRL:     return keyboard_key::R_CTRL;
+        case KEY_LEFTALT:       return keyboard_key::L_ALT;
+        case KEY_RIGHTALT:      return keyboard_key::R_ALT;
+
+        default: return keyboard_key::UNKNOWN;
+    }
+}
 #endif

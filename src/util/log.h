@@ -17,28 +17,28 @@ public:
     static void info(std::format_string<Args...> fmt, Args&&... args) {
         const std::string msg = std::format(fmt, std::forward<Args>(args)...);
         const std::string full = "[INFO]: " + msg + "\n";
-        platform::log_output(full.c_str(), false, ForegroundConsoleColor::GREEN, BackgroundConsoleColor::CLEAR);
+        platform::log_output(full.c_str(), false, foreground_console_color::GREEN, background_console_color::CLEAR);
     }
 
     template<class... Args>
     static void warn(std::format_string<Args...> fmt, Args&&... args) {
         const std::string msg = std::format(fmt, std::forward<Args>(args)...);
         const std::string full = "[WARN]: " + msg + "\n";
-        platform::log_output(full.c_str(), false, ForegroundConsoleColor::YELLOW, BackgroundConsoleColor::CLEAR);
+        platform::log_output(full.c_str(), false, foreground_console_color::YELLOW, background_console_color::CLEAR);
     }
 
     template<class... Args>
     static void error(std::format_string<Args...> fmt, Args&&... args) {
         const std::string msg = std::format(fmt, std::forward<Args>(args)...);
         const std::string full = "[ERROR]: " + msg + "\n";
-        platform::log_output(full.c_str(), true, ForegroundConsoleColor::RED, BackgroundConsoleColor::CLEAR);
+        platform::log_output(full.c_str(), true, foreground_console_color::RED, background_console_color::CLEAR);
     }
 
     template<class... Args>
     static void fatal(std::format_string<Args...> fmt, Args&&... args) {
         const std::string msg = std::format(fmt, std::forward<Args>(args)...);
         const std::string full = "[FATAL]: " + msg + "\n";
-        platform::log_output(full.c_str(), true, ForegroundConsoleColor::WHITE, BackgroundConsoleColor::RED);
+        platform::log_output(full.c_str(), true, foreground_console_color::WHITE, background_console_color::RED);
     }
 
 private:

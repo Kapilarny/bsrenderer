@@ -8,56 +8,10 @@
 
 #include "defines.h"
 
-class inner_framebuffer;
-class inner_window;
-class inner_platform;
+#include "window.h"
+#include "framebuffer.h"
 
-// TODO: make framebuffer take pixel format specification
-class framebuffer {
-public:
-    void clear_buffer(u32 background) const;
-
-    [[nodiscard]] u32* get_pixels() const;
-
-    [[nodiscard]] i32 get_height() const;
-    [[nodiscard]] i32 get_width() const;
-private:
-    framebuffer(i32 width, i32 height);
-
-    friend class inner_window;
-    friend class window;
-    inner_framebuffer* _inner;
-};
-
-struct window_options {
-    i16 width, height;
-    bool resizable;
-};
-
-class window {
-public:
-    window(const std::string& name, window_options opts);
-    ~window();
-
-    [[nodiscard]] i32 get_width() const;
-    [[nodiscard]] i32 get_height() const;
-
-    framebuffer *begin_frame();
-    void end_frame();
-
-    [[nodiscard]] bool should_close() const;
-private:
-    void _run_preframe_events();
-    void _run_postframe_events();
-
-    framebuffer* _framebuffers[2];
-    u64 _frame_counter = 0;
-    bool _drawing_frame = false;
-
-    inner_window* _inner;
-};
-
-enum class ForegroundConsoleColor {
+enum class foreground_console_color {
     CLEAR = 0,
     WHITE,
     GREEN,
@@ -65,7 +19,7 @@ enum class ForegroundConsoleColor {
     YELLOW
 };
 
-enum class BackgroundConsoleColor {
+enum class background_console_color {
     CLEAR = 0,
     RED,
     YELLOW
@@ -76,8 +30,8 @@ public:
     static void init();
 
     static void log_output(const char* str, bool is_error,
-        ForegroundConsoleColor foreground,
-        BackgroundConsoleColor background);
+        foreground_console_color foreground,
+        background_console_color background);
 };
 
 #endif //BSRENDERER_PLATFORM_H

@@ -5,6 +5,7 @@
 #ifndef BSRENDERER_RENDERER_H
 #define BSRENDERER_RENDERER_H
 #include "defines.h"
+#include "math/vec.h"
 
 class window;
 class model;
