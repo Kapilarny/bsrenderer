@@ -30,6 +30,10 @@ void software_renderer::end_frame() {
     _fb = nullptr; // invalidate framebuffer
 }
 
+void software_renderer::attach_camera(camera *cam) {
+    _cam = cam;
+}
+
 void software_renderer::clear_screen(const color clr) {
     DEBUG_ASSERT(_fb, "software_renderer::clear_screen() -> Attempt to draw without framebuffer!");
     _fb->clear_buffer(clr.to_argb());
@@ -37,84 +41,74 @@ void software_renderer::clear_screen(const color clr) {
 
 void software_renderer::draw_model(model &model) {
     DEBUG_ASSERT(_fb, "software_renderer::draw_model() -> Attempt to draw without framebuffer!");
+    DEBUG_ASSERT(_cam, "sofware_renderer::draw_model() -> Attempt to draw without an attached camera!");
 
     const auto width = _fb->get_width();
     const auto height = _fb->get_height();
 
-    constexpr auto clr_white = color(0xFFFFFF);
-    constexpr auto clr_red = color(0xFF0000);
-
-    // Coords are between [-1, 1] so we have to normalize them
-    auto ortho = [width, height](const vec3<double> &vertex) -> vec3<i32> {
-        i32 x = (vertex.x+1.0)/2.0 * (width);
-        i32 y = (vertex.y+1.0)/2.0 * (height);
-        i32 z = (vertex.z+1.0)/2.0 * 255;
-
-        return {x,y,z};
-    };
-
-    auto persp = [ortho](const vec3<double>& v) -> vec3<int> {
-        double c = 3.0;
-        return ortho(v / (1-v.z/c));
-    };
-
-    auto rotate = [model](const vec3<double>& v) {
-        // constexpr double a = M_PI/6;
-        double a = model.rotation;
-        const mat<3,3> R = {{std::cos(a), 0, std::sin(a), 0, 1, 0, -std::sin(a), 0, std::cos(a)}};
-        return R*v;
-    };
-
     // indices!
     srand(0);
     for (const auto& indices : model._indices) {
-        const auto p1 = persp(rotate(model._vertices[indices.x]));
-        const auto p2 = persp(rotate(model._vertices[indices.y]));
-        const auto p3 = persp(rotate(model._vertices[indices.z]));
+        vec4<double> clip[3];
+        for (const i32 d : {0, 1, 2}) {
+            const auto [x, y, z] = model._vertices[indices[d]];
+            clip[d] = _cam->_perspective * _cam->_model_view * vec4<double>{x, y, z, 1.};
+        }
 
         auto clr = color(rand() % 0xFFFFFF);
+        draw_primitive(clip, clr);
+    }
+}
 
-        draw_triangle({p1, p2, p3}, clr);
+void software_renderer::draw_primitive(vec4<double> clip[3], const color clr) {
+    vec4<double> ndc[3] = { clip[0]/clip[0].w, clip[1]/clip[1].w, clip[2]/clip[2].w };
+
+    const auto& viewport = _cam->_viewport;
+
+    vec2<double> screen[3] = {
+        (viewport*ndc[0]).xy(), (viewport*ndc[1]).xy(), (viewport*ndc[2]).xy()
+    };
+
+    const mat<3, 3> ABC = {
+        {
+            screen[0].x, screen[0].y, 1.0,
+            screen[1].x, screen[1].y, 1.0,
+            screen[2].x, screen[2].y, 1.0,
+        }
+    };
+
+    if (ABC.determinant() < 1) return; // cull + triangles less than a px
+
+    const auto width = _fb->get_width();
+    const auto height = _fb->get_height();
+
+    const auto [b_xstart, b_xend] = std::minmax({screen[0].x, screen[1].x, screen[2].x});
+    const auto [b_ystart, b_yend] = std::minmax({screen[0].y, screen[1].y, screen[2].y});
+
+    i32 xstart = std::max<i32>(0, b_xstart);
+    i32 xend = std::min<i32>(b_xend, width-1); // prevent overdraw
+
+    i32 ystart = std::max<i32>(0, b_ystart);
+    i32 yend = std::min<i32>(b_yend, height-1);
+
+#pragma omp parallel for
+    for (i32 x = xstart; x <= xend; x++) {
+        for (i32 y = ystart; y <= yend; y++) {
+            vec3 bc = ABC.invert_transpose() * vec3<double>{static_cast<double>(x), static_cast<double>(y), 1.0};
+
+            if (bc.x < 0 || bc.y < 0 || bc.z < 0) continue;
+            const double z = bc * vec3<double>{ndc[0].z, ndc[1].z, ndc[2].z};
+
+            if (z <= _depth_buffer.at(x, y)) continue;
+            _depth_buffer.at(x, y) = z;
+
+            _draw_dot(x, y, clr.to_argb());
+        }
     }
 }
 
 void software_renderer::draw_triangle(vec3<vec3<i32>> points, color clr) {
-    auto [p1, p2, p3] = points.data;
-    i32 b_xstart = std::min(p1.x, std::min(p2.x, p3.x));
-    i32 b_xend = std::max(p1.x, std::max(p2.x, p3.x));
-    i32 b_ystart = std::min(p1.y, std::min(p2.y, p3.y));
-    i32 b_yend = std::max(p1.y, std::max(p2.y, p3.y));
 
-    auto triangle_area = [](const vec2<i32>& a, const vec2<i32>& b, const vec2<i32>& c) -> double {
-        return 0.5 * ((b.y-a.y)*(b.x+a.x)+(c.y-b.y)*(c.x+b.x)+(a.y-c.y)*(a.x+c.x));
-    };
-    const auto area = triangle_area(p1, p2, p3);
-    if (area < 1) return; // back
-
-    const auto w = _fb->get_width();
-    const auto h = _fb->get_height();
-
-    b_xstart = std::max(0, b_xstart);
-    b_xend = std::min(w-1, b_xend);
-    b_ystart = std::max(0, b_ystart);
-    b_yend = std::min(h-1, b_yend);
-
-#pragma omp parallel for
-    for (int x = b_xstart; x <= b_xend; x++) {
-        for (int y = b_ystart; y <= b_yend; y++) {
-            const auto alpha = triangle_area({x, y}, p2, p3) / area;
-            const auto beta = triangle_area({x, y}, p3, p1) / area;
-            const auto gamma = triangle_area({x, y}, p1, p2) / area;
-
-            if (alpha < 0 || beta < 0 || gamma < 0) continue;
-            float z = p1.z * alpha + p2.z * beta + p3.z * gamma;
-            if (_depth_buffer.at(x, y) >= z) continue;
-            _depth_buffer.at(x, y) = z;
-
-            auto interpolated = color(z, z, z);
-            _draw_dot(x, y, clr.to_argb());
-        }
-    }
 }
 
 void software_renderer::_draw_line(vec2<i32> p1, vec2<i32> p2, u32 color) const {
@@ -154,13 +148,17 @@ void software_renderer::_draw_dot(const u32 x, u32 y, const u32 color) const {
     _fb->get_pixels()[y*_fb->get_width() + x] = color;
 }
 
-depth_buffer::depth_buffer(i32 w, i32 h) : w(w), h(h), _buffer(w*h) {
+depth_buffer::depth_buffer(i32 w, i32 h) : w(w), h(h), _buffer(w*h, -std::numeric_limits<double>::max()) {
 }
 
 void depth_buffer::clear() {
-    memset(_buffer.data(), 0, w*h*sizeof(_buffer[0]));
+    // memset(_buffer.data(), -std::numeric_limits<double>::max(), w*h*sizeof(_buffer[0]));
+
+    for (auto& el : _buffer) {
+        el = -std::numeric_limits<double>::max();
+    }
 }
 
-float& depth_buffer::at(i32 x, i32 y) {
+double& depth_buffer::at(i32 x, i32 y) {
     return _buffer[y*w + x];
 }

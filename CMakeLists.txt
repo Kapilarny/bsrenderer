@@ -27,6 +27,8 @@ add_executable(bsrenderer src/main.cpp
         src/platform/window.h
         src/platform/framebuffer.h
         src/platform/input.h
+        src/renderer/camera.cpp
+        src/renderer/camera.h
 )
 
 target_include_directories(bsrenderer PUBLIC "src/")

@@ -4,6 +4,7 @@
 
 #ifndef BSRENDERER_RENDERER_H
 #define BSRENDERER_RENDERER_H
+#include "camera.h"
 #include "defines.h"
 #include "math/vec.h"
 
@@ -38,11 +39,13 @@ public:
     virtual ~renderer() = default;
     explicit renderer(window* window);
 
-    static renderer* create_renderer(window* window, renderer_type type);
+    static std::unique_ptr<renderer> create_renderer(window* window, renderer_type type);
 
     virtual void begin_frame() = 0;
     virtual void end_frame() = 0;
     virtual void clear_screen(color clr) = 0;
+
+    virtual void attach_camera(camera* cam) = 0;
 
     virtual void draw_model(model& model) = 0;
     virtual void draw_triangle(vec3<vec3<i32>> points, color clr) = 0;

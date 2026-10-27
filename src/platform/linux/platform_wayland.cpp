@@ -169,6 +169,10 @@ public:
         }
     }
 
+    ~inner_window() {
+        // TODO: perform cleanup
+    }
+
     void present_framebuffer(const inner_framebuffer* buf) const {
         wl_surface_attach(_surface, buf->buffer, 0, 0);
         wl_surface_damage_buffer(_surface, 0, 0, buf->width, buf->height);

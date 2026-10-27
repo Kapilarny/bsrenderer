@@ -5,152 +5,144 @@
 #ifndef BSRENDERER_VEC_H
 #define BSRENDERER_VEC_H
 
+#include <cmath>
+
 #include "defines.h"
 #include "util/log.h"
 
+template <i32 N, typename T>
+struct vec {
+    T data[N]{};
+
+    double magnitude() {
+        return (*this) * (*this);
+    }
+
+    vec normalized() {
+        return *this / magnitude();
+    }
+
+    constexpr double& operator[](const i32 idx) { return data[idx]; }
+    constexpr const double& operator[](const i32 idx) const { return data[idx]; }
+};
+
+template<i32 N, typename T>
+double operator*(const vec<N, T>& a, const vec<N, T>& b) {
+    double res = 0;
+    for (i32 i = 0; i < N; i++) {
+        res += a[i] * b[i];
+    }
+    return res;
+}
+
+template<i32 N, typename T>
+vec<N, T> operator+(const vec<N, T>& a, const vec<N, T>& b) {
+    vec<N, T> res;
+    for (i32 i = 0; i < N; i++) {
+        res[i] = a[i] + b[i];
+    }
+    return res;
+}
+
+template<i32 N, typename T>
+vec<N, T> operator-(const vec<N, T>& a, const vec<N, T>& b) {
+    vec<N, T> res;
+    for (i32 i = 0; i < N; i++) {
+        res[i] = a[i] - b[i];
+    }
+    return res;
+}
+
+template<i32 N, typename T>
+vec<N, T> operator*(const vec<N, T>& a, const T& scalar) {
+    vec<N, T> res;
+    for (i32 i = 0; i < N; i++) {
+        res[i] = a[i] * scalar;
+    }
+    return res;
+}
+
+template<i32 N, typename T>
+vec<N, T> operator*(const T& scalar, const vec<N, T>& a) {
+    return a * scalar;
+}
+
+template<i32 N, typename T>
+vec<N, T> operator/(const vec<N, T>& a, const T& scalar) {
+    vec<N, T> res;
+    for (i32 i = 0; i < N; i++) {
+        res[i] = a[i] / scalar;
+    }
+    return res;
+}
+
+
 template<typename T>
-struct vec4 {
-    union {
-        struct {
-            T x, y, z, w;
-        };
+using vec2 = vec<2, T>;
 
-        T data[4];
-    };
+template<typename T>
+using vec3 = vec<3, T>;
 
-    vec4() = default;
-    vec4(const T& x, const T& y, const T& z, const T& w) : x(x), y(y), z(z), w(w) {}
-    vec4(const vec4<T>& v) : x(v.x), y(v.y), z(v.z), w(v.w) {}
+template<typename T>
+using vec4 = vec<4, T>;
 
-    T& operator[](u64 i) {
-        DEBUG_ASSERT(i < 4, "vec3[] -> subscript of out range.");
-        return data[i];
+template<typename T>
+struct vec<2, T> {
+    T x{}, y{};
+
+    constexpr T& operator[](const i32 idx) { DEBUG_ASSERT(idx < 2, "subscript out of range"); return idx ? y : x; }
+    constexpr const T& operator[](const i32 idx) const { DEBUG_ASSERT(idx < 2, "subscript out of range"); return idx ? y : x; }
+};
+
+template<typename T>
+struct vec<3, T> {
+    T x{}, y{}, z{};
+
+    vec2<T> xy() { return {x, y}; }
+
+    constexpr T& operator[](const i32 idx) { DEBUG_ASSERT(idx < 3, "subscript out of range"); return idx ? (idx == 1 ? y : z) : x; }
+    constexpr const T& operator[](const i32 idx) const { DEBUG_ASSERT(idx < 3, "subscript out of range"); return idx ? (idx == 1 ? y : z) : x; }
+
+    double magnitude() {
+        return std::sqrt((*this) * (*this));
     }
 
-    const T& operator[](u64 i) const {
-        DEBUG_ASSERT(i < 4, "vec3[] -> subscript of out range.");
-        return data[i];
-    }
-
-    constexpr vec4<T> operator+(const vec4<T>& v) const {
-        return vec4<T>(x + v.x, y + v.y, z + v.z, w + v.w);
-    }
-
-    constexpr vec4<T> operator-(const vec4<T>& v) const {
-        return vec4<T>(x - v.x, y - v.y, z - v.z, w - v.w);
-    }
-
-    constexpr void operator+=(const vec4<T>& v) {
-        x += v.x;
-        y += v.y;
-        z += v.z;
-        w += v.w;
-    }
-
-    constexpr void operator-=(const vec4<T>& v) {
-        x -= v.x;
-        y -= v.y;
-        z -= v.z;
-        w -= v.w;
+    vec normalized() {
+        return *this / magnitude();
     }
 };
 
 template<typename T>
-struct vec3 {
-    union {
-        struct {
-            T x, y, z;
-        };
+struct vec<4, T> {
+    T x{}, y{}, z{}, w{};
 
-        T data[3];
-    };
+    vec2<T> xy() { return {x, y}; }
+    vec3<T> xyz() { return {x, y, z}; }
 
-    vec3() = default;
-    vec3(const T& x, const T& y, const T& z) : x(x), y(y), z(z) {}
-    vec3(const vec3<T>& v) : x(v.x), y(v.y), z(v.z) {}
-
-    T& operator[](u64 i) {
-        DEBUG_ASSERT(i < 3, "vec3[] -> subscript of out range.");
-        return data[i];
+    constexpr T& operator[](const i32 idx) {
+        DEBUG_ASSERT(idx < 4, "subscript out of range");
+        return idx < 2 ? (idx ? y : x) : (idx == 2 ? z : w);
     }
 
-    const T& operator[](u64 i) const {
-        DEBUG_ASSERT(i < 3, "vec3[] -> subscript of out range.");
-        return data[i];
+    constexpr const T& operator[](const i32 idx) const {
+        DEBUG_ASSERT(idx < 4, "subscript out of range");
+        return idx < 2 ? (idx ? y : x) : (idx == 2 ? z : w);
     }
 
-    constexpr vec3<T> operator+(const vec3<T>& v) const {
-        return vec3<T>(x + v.x, y + v.y, z + v.z);
+    double magnitude() {
+        return (*this) * (*this);
     }
 
-    constexpr vec3<T> operator-(const vec3<T>& v) const {
-        return vec3<T>(x - v.x, y - v.y, z - v.z);
-    }
-
-    constexpr void operator+=(const vec3<T>& v) {
-        x += v.x;
-        y += v.y;
-        z += v.z;
-    }
-
-    constexpr void operator-=(const vec3<T>& v) {
-        x -= v.x;
-        y -= v.y;
-        z -= v.z;
-    }
-
-    constexpr vec3<T> operator/(T v) const {
-        return vec3<T>(x / v, y / v, z / v);
-    }
-
-    constexpr vec3<T> operator/(vec3<T> v) const {
-        return vec3<T>(x / v.x, y / v.y, z / v.z);
-    }
-
-};
-
-template<typename T>
-struct vec2 {
-    union {
-        struct {
-            T x, y;
-        };
-
-        T data[2];
-    };
-
-    vec2() = default;
-    vec2(T& x, T& y) : x(x), y(y) {}
-    vec2(const vec3<T>& v) : x(v.x), y(v.y) {}
-
-    T& operator[](u64 i) {
-        DEBUG_ASSERT(i < 2, "vec2[] -> subscript of out range.");
-        return data[i];
-    }
-
-    T& operator[](u64 i) const {
-        DEBUG_ASSERT(i < 2, "vec2[] -> subscript of out range.");
-        return data[i];
-    }
-
-    constexpr vec2<T> operator+(const vec2<T>& v) const {
-        return vec2<T>(x + v.x, y + v.y);
-    }
-
-    constexpr vec2<T> operator-(const vec2<T>& v) const {
-        return vec2<T>(x - v.x, y - v.y);
-    }
-
-    constexpr void operator+=(const vec2<T>& v) {
-        x += v.x;
-        y += v.y;
-    }
-
-    constexpr void operator-=(const vec2<T>& v) {
-        x -= v.x;
-        y -= v.y;
+    vec normalized() {
+        return *this / magnitude();
     }
 };
 
+namespace bmath {
+    template<typename T>
+    vec3<T> cross(const vec3<T>& a, const vec3<T>& b) {
+        return {a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x};
+    }
+}
 
 #endif //BSRENDERER_VEC_H
