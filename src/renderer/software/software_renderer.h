@@ -33,6 +33,8 @@ public:
     void clear_screen(color clr) override;
 
     void draw_model(model &model) override;
+    void blit_text(const std::string& str, u32 x, u32 y, color clr) override;
+
     void attach_camera(camera *cam) override;
 
     void draw_primitive(vec4<double> clip[], color clr);

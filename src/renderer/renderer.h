@@ -48,6 +48,7 @@ public:
     virtual void attach_camera(camera* cam) = 0;
 
     virtual void draw_model(model& model) = 0;
+    virtual void blit_text(const std::string& str, u32 x, u32 y, color clr) = 0;
 protected:
     window* _window;
 };

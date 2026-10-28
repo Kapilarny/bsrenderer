@@ -8,6 +8,7 @@
 #include <cmath>
 
 #include "triangle_clip.h"
+#include "font/font.h"
 #include "platform/platform.h"
 #include "util/log.h"
 #include "util/model.h"
@@ -58,6 +59,41 @@ void software_renderer::draw_model(model &model) {
 
         const auto clr = color(rand() % 0xFFFFFF);
         draw_primitive(clip, clr);
+    }
+}
+
+void software_renderer::blit_text(const std::string &str, u32 x, u32 y, color clr) {
+    auto font = font_font;
+
+    const auto find_glyph = [font](char c) -> const glyph_t* {
+        for (i32 i = 0; i < font.glyph_count; i++) {
+            if (font.glyph[i].cp == c) return &font.glyph[i];
+        }
+
+        return nullptr;
+    };
+
+    log::info("{}", find_glyph('l')->cp);
+
+    for (const char c : str) {
+        const auto glyph = find_glyph(c);
+
+        if (!glyph) {
+            log::error("Couldn't find glyph for: {}", c);
+            continue;
+        }
+
+        for (auto gx = 0; gx < glyph->w; gx++) {
+            for (auto gy = 0; gy < glyph->h; gy++) {
+                const u32 dot = reinterpret_cast<const u32*>(glyph->data)[(glyph->h - gy - 1) * glyph->w + gx];
+                const color c = color(dot);
+                if (c.b == 255) {
+                    _draw_dot(gx + x, gy + y, clr.to_argb());
+                }
+            }
+        }
+
+        x += glyph->advance;
     }
 }
 

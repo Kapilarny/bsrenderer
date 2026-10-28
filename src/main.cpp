@@ -28,6 +28,7 @@ int main() {
 
     model m("resources/diablo3_pose.obj");
     constexpr auto bg_color = color(0x6095eb);
+    constexpr auto txt_color = color(0xff0000);
 
     const auto rend = renderer::create_renderer(&w, renderer_type::SOFTWARE);
 
@@ -44,6 +45,7 @@ int main() {
     constexpr double TARGET_FPS = 165.0;
     constexpr auto target_frame_time = std::chrono::duration<double>(1.0/TARGET_FPS);
     auto last_frame = std::chrono::steady_clock::now();
+    u64 last_frame_ms = 0;
 
     while (!w.should_close()) {
         const auto frame_start = std::chrono::steady_clock::now();
@@ -68,10 +70,14 @@ int main() {
         rend->clear_screen(color(0));
         rend->draw_model(m);
 
+        rend->blit_text("bsrenderer", 10, 80, txt_color);
+        rend->blit_text("frametime: " + std::to_string(last_frame_ms), 10, 10, txt_color);
         rend->end_frame();
 
         const auto elapsed = std::chrono::steady_clock::now() - frame_start;
         const auto frame_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+        last_frame_ms = frame_time_ms;
+
         log::info("Frametime: {}", frame_time_ms);
         if (elapsed < target_frame_time) {
             std::this_thread::sleep_for(target_frame_time - elapsed);

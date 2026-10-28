@@ -35,6 +35,7 @@ add_executable(bsrenderer src/main.cpp
         src/platform/linux/relative-pointer-unstable-v1.cpp
         src/platform/linux/pointer-constraints-unstable.cpp
         src/platform/linux/pointer-constraints-unstable.h
+        src/font/font.c
 )
 
 target_include_directories(bsrenderer PUBLIC "src/")
