@@ -48,7 +48,6 @@ public:
     virtual void attach_camera(camera* cam) = 0;
 
     virtual void draw_model(model& model) = 0;
-    virtual void draw_triangle(vec3<vec3<i32>> points, color clr) = 0;
 protected:
     window* _window;
 };

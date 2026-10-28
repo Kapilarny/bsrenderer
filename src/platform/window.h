@@ -28,6 +28,9 @@ public:
     framebuffer *begin_frame();
     void end_frame();
 
+    void capture_mouse();
+    void release_mouse();
+
     [[nodiscard]] bool should_close() const;
     [[nodiscard]] input& get_input();
 private:

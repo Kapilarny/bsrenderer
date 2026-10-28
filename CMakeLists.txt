@@ -29,6 +29,12 @@ add_executable(bsrenderer src/main.cpp
         src/platform/input.h
         src/renderer/camera.cpp
         src/renderer/camera.h
+        src/renderer/software/triangle_clip.cpp
+        src/renderer/software/triangle_clip.h
+        src/platform/linux/relative-pointer-unstable-v1.h
+        src/platform/linux/relative-pointer-unstable-v1.cpp
+        src/platform/linux/pointer-constraints-unstable.cpp
+        src/platform/linux/pointer-constraints-unstable.h
 )
 
 target_include_directories(bsrenderer PUBLIC "src/")

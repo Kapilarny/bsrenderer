@@ -76,7 +76,6 @@ vec<N, T> operator/(const vec<N, T>& a, const T& scalar) {
     return res;
 }
 
-
 template<typename T>
 using vec2 = vec<2, T>;
 
@@ -102,6 +101,11 @@ struct vec<3, T> {
 
     constexpr T& operator[](const i32 idx) { DEBUG_ASSERT(idx < 3, "subscript out of range"); return idx ? (idx == 1 ? y : z) : x; }
     constexpr const T& operator[](const i32 idx) const { DEBUG_ASSERT(idx < 3, "subscript out of range"); return idx ? (idx == 1 ? y : z) : x; }
+
+
+    vec3<T>& operator+=(const vec3<T>& a) {
+        return *this = *this + a;
+    }
 
     double magnitude() {
         return std::sqrt((*this) * (*this));
@@ -142,6 +146,15 @@ namespace bmath {
     template<typename T>
     vec3<T> cross(const vec3<T>& a, const vec3<T>& b) {
         return {a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x};
+    }
+
+    template<typename T>
+    T dot(const vec3<double>& a, const vec3<double>& b) {
+        T result{};
+        for (i32 i = 0; i < 3; i++) {
+            result += a[i] * b[i];
+        }
+        return result;
     }
 }
 

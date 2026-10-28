@@ -13,6 +13,10 @@
 #include <linux/input-event-codes.h>
 #include <wayland-client.h>
 #include <wayland-client-protocol.h>
+
+#include "relative-pointer-unstable-v1.h"
+#include "pointer-constraints-unstable.h"
+#include "relative-pointer-unstable-v1.h"
 #include "xdg-shell-client-protocol.h"
 
 #include "util/log.h"
@@ -31,7 +35,9 @@ public:
         wl_registry_add_listener(registry, &_registry_listener, this);
 
         FATAL_ASSERT(wl_display_roundtrip(display) > 0, "platform_wayland: Failed display roundtrip.");
-        FATAL_ASSERT(compositor || shm || wm_base || seat, "platform_wayland: Required Wayland interfaces unavailable.");
+        FATAL_ASSERT(
+            compositor || shm || wm_base || seat || _relative_pointer_manager || _pointer_constraints,
+            "platform_wayland: Required Wayland interfaces unavailable.");
     }
 
     void process_pending_events() const {
@@ -48,6 +54,8 @@ public:
     wl_shm* shm{};
     xdg_wm_base* wm_base{};
     wl_seat* seat{};
+    zwp_relative_pointer_manager_v1* _relative_pointer_manager{};
+    zwp_pointer_constraints_v1* _pointer_constraints{};
 private:
     static void _registry_global(
         void* data,
@@ -162,6 +170,9 @@ public:
         _keyboard = wl_seat_get_keyboard(wl_inst->seat);
         wl_keyboard_add_listener(_keyboard, &_wl_keyboard_listener, this);
 
+        _pointer = wl_seat_get_pointer(wl_inst->seat);
+        wl_pointer_add_listener(_pointer, &_wl_pointer_listener, this);
+
         wl_surface_commit(_surface);
 
         while (!_configured) {
@@ -179,14 +190,52 @@ public:
         wl_surface_commit(_surface);
     }
 
+    void capture_mouse() {
+        _locked_pointer = zwp_pointer_constraints_v1_lock_pointer(
+            wl_inst->_pointer_constraints,
+            _surface,
+            _pointer,
+            nullptr,
+            ZWP_POINTER_CONSTRAINTS_V1_LIFETIME_PERSISTENT
+        );
+
+        _relative_pointer = zwp_relative_pointer_manager_v1_get_relative_pointer(
+            wl_inst->_relative_pointer_manager,
+            _pointer
+        );
+
+        zwp_relative_pointer_v1_add_listener(_relative_pointer, &_zwp_relative_pointer_listener, this);
+
+        // hide cursor
+        wl_pointer_set_cursor(_pointer, _pointer_serial, _surface, 0, 0);
+    }
+
+    void release_mouse() {
+        if (_relative_pointer) {
+            zwp_relative_pointer_v1_destroy(_relative_pointer);
+            _relative_pointer = nullptr;
+        }
+
+        if (_locked_pointer) {
+            zwp_locked_pointer_v1_destroy(_locked_pointer);
+            _locked_pointer = nullptr;
+        }
+    }
+
     bool running = true;
     i32 width, height;
 private:
     window* _frontend;
     wl_surface* _surface;
     wl_keyboard* _keyboard;
+    wl_pointer* _pointer;
     xdg_surface* _xdg_surface;
     xdg_toplevel* _xdg_toplevel;
+
+    zwp_locked_pointer_v1* _locked_pointer{};
+    zwp_relative_pointer_v1* _relative_pointer{};
+
+    u32 _pointer_serial;
 
     bool _configured = false;
 
@@ -237,6 +286,29 @@ private:
         .key = _wl_keyboard_key_event,
         .modifiers = [](void*, wl_keyboard*, u32, u32, u32, u32, u32) {}
     };
+
+
+    static void _wl_pointer_enter_event(void* data, wl_pointer*, u32 serial, wl_surface*, wl_fixed_t, wl_fixed_t) {
+        auto* inner = static_cast<inner_window*>(data);
+        inner->_pointer_serial = serial;
+    }
+    static constexpr wl_pointer_listener _wl_pointer_listener = {
+        .enter = _wl_pointer_enter_event,
+        .leave = [](void*, wl_pointer*, u32, wl_surface*) {},
+        // .motion = _wl_pointer_motion_event,
+        .motion = [](void*, wl_pointer*, u32, wl_fixed_t, wl_fixed_t) {},
+        .button = [](void*, wl_pointer*, u32, u32, u32, u32) {},
+    };
+
+    static void _zwp_relative_pointer_motion_event
+        (void* data, zwp_relative_pointer_v1*, u32, u32, wl_fixed_t dx, wl_fixed_t dy, wl_fixed_t, wl_fixed_t) {
+
+        auto inner = static_cast<inner_window*>(data);
+        inner->_frontend->get_input()._update_mouse_xy(wl_fixed_to_double(dx), wl_fixed_to_double(dy));
+    }
+    static constexpr zwp_relative_pointer_v1_listener _zwp_relative_pointer_listener = {
+        .relative_motion = _zwp_relative_pointer_motion_event
+    };
 };
 
 window::window(const std::string &name, const window_options opts) {
@@ -259,11 +331,20 @@ i32 window::get_height() const {
 
 void window::_run_preframe_events() {
     _input._update_key_states();
+    _input._update_mouse_states();
     wl_inst->process_pending_events();
 }
 
 void window::_run_postframe_events() {
     wl_inst->wait_for_next_frame();
+}
+
+void window::capture_mouse() {
+    _inner->capture_mouse();
+}
+
+void window::release_mouse() {
+    _inner->release_mouse();
 }
 
 framebuffer *window::begin_frame() {
@@ -309,6 +390,16 @@ void wayland::_registry_global(void *data, wl_registry *registry, u32 name, cons
     } else if (std::strcmp(interface, wl_seat_interface.name) == 0) {
         inner->seat = static_cast<wl_seat*>(
             wl_registry_bind(registry, name, &wl_seat_interface,
+                std::min(version, 1u))
+        );
+    } else if (std::strcmp(interface, zwp_relative_pointer_manager_v1_interface.name) == 0) {
+        inner->_relative_pointer_manager = static_cast<zwp_relative_pointer_manager_v1*>(
+            wl_registry_bind(registry, name, &zwp_relative_pointer_manager_v1_interface,
+                std::min(version, 1u))
+        );
+    } else if (std::strcmp(interface, zwp_pointer_constraints_v1_interface.name) == 0) {
+        inner->_pointer_constraints = static_cast<zwp_pointer_constraints_v1*>(
+            wl_registry_bind(registry, name, &zwp_pointer_constraints_v1_interface,
                 std::min(version, 1u))
         );
     }

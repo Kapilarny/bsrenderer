@@ -5,6 +5,7 @@
 #include "defines.h"
 #ifdef BSRENDERER_LINUX
 
+#include <chrono>
 #include <iostream>
 
 #include "platform/platform.h"
