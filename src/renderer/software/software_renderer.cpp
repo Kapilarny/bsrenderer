@@ -9,11 +9,16 @@
 
 #include "triangle_clip.h"
 #include "font/font.h"
+#include "materials/material_textured.h"
 #include "platform/platform.h"
 #include "util/log.h"
 #include "util/model.h"
 
 #include "math/bmath.h"
+#include "shaders/flat_shader.h"
+#include "shaders/texture_shader.h"
+
+#include "vertex.h"
 
 software_renderer::software_renderer(window *window)
     : renderer(window), _depth_buffer(depth_buffer(window->get_width(), window->get_height())) {}
@@ -41,24 +46,31 @@ void software_renderer::clear_screen(const color clr) {
     _fb->clear_buffer(clr.to_argb());
 }
 
-void software_renderer::draw_model(model &model) {
+void software_renderer::draw_model(model &model, imaterial& material) {
     DEBUG_ASSERT(_fb, "software_renderer::draw_model() -> Attempt to draw without framebuffer!");
     DEBUG_ASSERT(_cam, "sofware_renderer::draw_model() -> Attempt to draw without an attached camera!");
 
     const auto width = _fb->get_width();
     const auto height = _fb->get_height();
 
+    // auto shader = flat_shader(model, {_cam->_view, _cam->_projection});
+    auto tex = texture("resources/diablo3_pose_diffuse.tga");
+
+    // auto shader = texture_shader(tex, model, );
+    auto shader = material.get_shader();
+    shader->setup(model, {&_cam->_view, &_cam->_projection});
+
     // indices!
     srand(0);
-    for (const auto& indices : model._indices) {
-        vec4<double> clip[3];
-        for (const i32 d : {0, 1, 2}) {
-            const auto [x, y, z] = model._vertices[indices[d]];
-            clip[d] = _cam->_projection * _cam->_view * vec4<double>{x, y, z, 1.};
-        }
+    for (i32 face = 0; face < model.indices.size(); face++) {
+        // shader.clr = color(rand() % 0xFFFFFF);
+        triangle tri = {
+            shader->vertex_shader(face, 0),
+            shader->vertex_shader(face, 1),
+            shader->vertex_shader(face, 2)
+        };
 
-        const auto clr = color(rand() % 0xFFFFFF);
-        draw_primitive(clip, clr);
+        draw_primitive(tri, shader);
     }
 }
 
@@ -73,8 +85,6 @@ void software_renderer::blit_text(const std::string &str, u32 x, u32 y, color cl
         return nullptr;
     };
 
-    log::info("{}", find_glyph('l')->cp);
-
     for (const char c : str) {
         const auto glyph = find_glyph(c);
 
@@ -86,8 +96,8 @@ void software_renderer::blit_text(const std::string &str, u32 x, u32 y, color cl
         for (auto gx = 0; gx < glyph->w; gx++) {
             for (auto gy = 0; gy < glyph->h; gy++) {
                 const u32 dot = reinterpret_cast<const u32*>(glyph->data)[(glyph->h - gy - 1) * glyph->w + gx];
-                const color c = color(dot);
-                if (c.b == 255) {
+                const color dot_clr = color(dot);
+                if (dot_clr.b == 255) {
                     _draw_dot(gx + x, gy + y, clr.to_argb());
                 }
             }
@@ -97,21 +107,29 @@ void software_renderer::blit_text(const std::string &str, u32 x, u32 y, color cl
     }
 }
 
-void software_renderer::draw_primitive(vec4<double> clip[], color clr) {
+void software_renderer::draw_primitive(triangle clip, ishader* shader) {
     const auto polygon = triangle_clip::clip_triangle(clip);
 
     for (i32 i = 1; i + 1 < polygon.count; i++) {
-        vec4<double> tri[3] = {
+        vertex tri[3] = {
             polygon.vertices[0],
             polygon.vertices[i],
-            polygon.vertices[i+1]
+            polygon.vertices[i+1],
         };
 
-        rasterize_triangle(tri, clr);
+        shader->setup_triangle(tri);
+
+        vec4<double> clip[3] = {
+            polygon.vertices[0].pos,
+            polygon.vertices[i].pos,
+            polygon.vertices[i+1].pos
+        };
+
+        rasterize_triangle(clip, shader);
     }
 }
 
-void software_renderer::rasterize_triangle(vec4<double> clip[3], const color clr) {
+void software_renderer::rasterize_triangle(const vec4<double> clip[4], const ishader* shader) {
     const vec4<double> ndc[3] = { clip[0]/clip[0].w, clip[1]/clip[1].w, clip[2]/clip[2].w };
 
     const auto& viewport = _cam->_viewport;
@@ -152,8 +170,11 @@ void software_renderer::rasterize_triangle(vec4<double> clip[3], const color clr
             const double z = bc * vec3<double>{ndc[0].z, ndc[1].z, ndc[2].z};
 
             if (z >= _depth_buffer.at(x, y)) continue;
-            _depth_buffer.at(x, y) = z;
 
+            auto [discard, clr] = shader->fragment_shader(bc);
+            if (discard) continue;
+
+            _depth_buffer.at(x, y) = z;
             _draw_dot(x, y, clr.to_argb());
         }
     }

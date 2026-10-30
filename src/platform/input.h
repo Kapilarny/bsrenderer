@@ -51,7 +51,7 @@ public:
         return _kb_states[static_cast<u64>(key)] == key_state::DOWN;
     }
 
-    [[nodiscard]] key_state get_mouse_state(mouse_button button) const {
+    [[nodiscard]] key_state get_mouse_btn_state(mouse_button button) const {
         return _mb_states[static_cast<u64>(button)];
     }
 

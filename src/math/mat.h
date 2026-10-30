@@ -67,10 +67,10 @@ vec<Rows, double> operator*(const vec<Rows, double>& lhs, const mat<Cols, Rows>&
 }
 
 template<i32 Cols, i32 Rows>
-vec<Rows, double> operator*(const mat<Cols, Rows>& lhs, const vec<Rows, double>& rhs) {
+vec<Rows, double> operator*(const mat<Cols, Rows>& lhs, const vec<Cols, double>& rhs) {
     vec<Rows, double> result;
     for (i32 i = 0; i < Rows; ++i) {
-        result[i] = lhs[i]*rhs;
+        result[i] = lhs[i] * rhs;
     }
     return result;
 }

@@ -36,7 +36,7 @@ public:
 
         FATAL_ASSERT(wl_display_roundtrip(display) > 0, "platform_wayland: Failed display roundtrip.");
         FATAL_ASSERT(
-            compositor || shm || wm_base || seat || _relative_pointer_manager || _pointer_constraints,
+            compositor && shm && wm_base && seat && _relative_pointer_manager && _pointer_constraints,
             "platform_wayland: Required Wayland interfaces unavailable.");
     }
 
@@ -207,7 +207,7 @@ public:
         zwp_relative_pointer_v1_add_listener(_relative_pointer, &_zwp_relative_pointer_listener, this);
 
         // hide cursor
-        wl_pointer_set_cursor(_pointer, _pointer_serial, _surface, 0, 0);
+
     }
 
     void release_mouse() {
@@ -291,6 +291,7 @@ private:
     static void _wl_pointer_enter_event(void* data, wl_pointer*, u32 serial, wl_surface*, wl_fixed_t, wl_fixed_t) {
         auto* inner = static_cast<inner_window*>(data);
         inner->_pointer_serial = serial;
+        wl_pointer_set_cursor(inner->_pointer, inner->_pointer_serial, NULL, 0, 0);
     }
     static constexpr wl_pointer_listener _wl_pointer_listener = {
         .enter = _wl_pointer_enter_event,

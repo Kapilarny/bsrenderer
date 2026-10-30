@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "renderer/renderer.h"
+#include "renderer/software/materials/material_textured.h"
 #include "util/log.h"
 #include "util/model.h"
 
@@ -27,6 +28,8 @@ int main() {
     const auto& input = w.get_input();
 
     model m("resources/diablo3_pose.obj");
+    material_textured tex_material(texture("resources/diablo3_pose_diffuse.tga"));
+
     constexpr auto bg_color = color(0x6095eb);
     constexpr auto txt_color = color(0xff0000);
 
@@ -68,7 +71,7 @@ int main() {
         rend->begin_frame();
 
         rend->clear_screen(color(0));
-        rend->draw_model(m);
+        rend->draw_model(m, tex_material);
 
         rend->blit_text("bsrenderer", 10, 80, txt_color);
         rend->blit_text("frametime: " + std::to_string(last_frame_ms), 10, 10, txt_color);
@@ -78,7 +81,6 @@ int main() {
         const auto frame_time_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
         last_frame_ms = frame_time_ms;
 
-        log::info("Frametime: {}", frame_time_ms);
         if (elapsed < target_frame_time) {
             std::this_thread::sleep_for(target_frame_time - elapsed);
         }

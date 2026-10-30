@@ -4,6 +4,8 @@
 
 #include "triangle_clip.h"
 
+#include "software_renderer.h"
+
 using polygon = triangle_clip::polygon;
 
 double triangle_clip::plane_distance(const vec4<double> &p, i32 plane) {
@@ -21,26 +23,29 @@ double triangle_clip::plane_distance(const vec4<double> &p, i32 plane) {
     return -1.0;
 }
 
-vec4<double> triangle_clip::intersect(const vec4<double> &a, const vec4<double> &b, i32 plane) {
-    const auto da = plane_distance(a, plane);
-    const auto db = plane_distance(b, plane);
+vertex triangle_clip::intersect(const vertex &a, const vertex &b, i32 plane) {
+    const auto da = plane_distance(a.pos, plane);
+    const auto db = plane_distance(b.pos, plane);
 
     const double t = da / (da - db);
 
-    return a + (b - a) * t;
+    return {
+        a.pos + (b.pos - a.pos) * t,
+        a.uv + (b.uv - a.uv) * t,
+    };
 }
 
-polygon triangle_clip::clip_triangle(const vec4<double> triangle[3]) {
+polygon triangle_clip::clip_triangle(const triangle tri) {
     polygon a, b;
 
     for (i32 i = 0; i < 3; i++) {
-        a.push_back(triangle[i]);
+        a.push_back(tri[i]);
     }
 
     for (i32 plane = 0; plane < 6; plane++) {
         bool all_outside = true;
         for (i32 i = 0; i < a.count; i++) {
-            if (plane_distance(a.vertices[i], plane) >= 0.0) {
+            if (plane_distance(a.vertices[i].pos, plane) >= 0.0) {
                 all_outside = false;
                 break;
             }
@@ -57,8 +62,8 @@ polygon triangle_clip::clip_triangle(const vec4<double> triangle[3]) {
             const auto& curr = a.vertices[i];
             const auto& prev = a.vertices[(i + a.count - 1) % a.count];
 
-            const double curr_dist = plane_distance(curr, plane);
-            const double prev_dist = plane_distance(prev, plane);
+            const double curr_dist = plane_distance(curr.pos, plane);
+            const double prev_dist = plane_distance(prev.pos, plane);
 
             const bool curr_inside = curr_dist >= 0.0;
             const bool prev_inside = prev_dist >= 0.0;

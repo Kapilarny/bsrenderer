@@ -8,9 +8,11 @@
 #include "defines.h"
 #include "math/vec.h"
 
+class imaterial;
 class window;
 class model;
 class framebuffer;
+struct ishader;
 
 enum class renderer_type {
     SOFTWARE,
@@ -18,6 +20,8 @@ enum class renderer_type {
 };
 
 struct color {
+    constexpr color() = default;
+
     explicit constexpr color(const u32 rgb_hex) {
         a = 255;
         b = rgb_hex;
@@ -26,9 +30,21 @@ struct color {
     }
 
     explicit constexpr color(const u32 r, const u32 g, const u32 b) : r(r), g(g), b(b), a(255) {}
+    explicit constexpr color(const u32 r, const u32 g, const u32 b, const u32 a) : r(r), g(g), b(b), a(a) {}
 
     [[nodiscard]] u32 to_argb() const {
         return a << 24 | r << 16 | g << 8 | b;
+    }
+
+    constexpr u8& operator[](const u32 index) {
+        switch (index) {
+            case 0: return r;
+            case 1: return g;
+            case 2: return b;
+            default: break;
+        }
+
+        return a;
     }
 
     u8 a{}, r{}, g{}, b{};
@@ -47,7 +63,7 @@ public:
 
     virtual void attach_camera(camera* cam) = 0;
 
-    virtual void draw_model(model& model) = 0;
+    virtual void draw_model(model& model, imaterial& material) = 0;
     virtual void blit_text(const std::string& str, u32 x, u32 y, color clr) = 0;
 protected:
     window* _window;
