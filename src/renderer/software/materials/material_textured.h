@@ -13,8 +13,7 @@
 struct material_textured : imaterial {
     texture tex;
     texture_shader shader;
-    explicit material_textured(texture texture) : tex(std::move(texture)), shader(texture_shader()) {
-        shader.tex = &tex;
+    explicit material_textured(texture texture) : tex(std::move(texture)), shader(&tex) {
     }
 
     ishader *get_shader() override {

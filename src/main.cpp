@@ -12,6 +12,8 @@
 
 // BSRenderer - Bad Software Renderer
 
+#include <tracy/Tracy.hpp>
+
 int main() {
     platform::init();
     log::init();
@@ -41,7 +43,7 @@ int main() {
     cam.set_perspective(60.0 * std::numbers::pi / 180.0, static_cast<double>(width) / static_cast<double>(height), 0.1, 1000);
     cam.set_viewport(0, 0, width, height);
 
-    w.capture_mouse();
+    // w.capture_mouse();
     rend->attach_camera(&cam);
 
 
@@ -51,6 +53,8 @@ int main() {
     u64 last_frame_ms = 0;
 
     while (!w.should_close()) {
+        ZoneScopedN("Main loop");
+
         const auto frame_start = std::chrono::steady_clock::now();
         const double delta_time = std::chrono::duration<double>(frame_start-last_frame).count();
         last_frame = frame_start;
@@ -84,6 +88,8 @@ int main() {
         if (elapsed < target_frame_time) {
             std::this_thread::sleep_for(target_frame_time - elapsed);
         }
+
+        FrameMark;
     }
 
     return 0;

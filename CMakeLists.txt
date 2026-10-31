@@ -48,8 +48,23 @@ add_executable(bsrenderer src/main.cpp
         src/renderer/software/vertex.h
 )
 
+include(FetchContent)
+
+FetchContent_Declare(
+        tracy
+        GIT_REPOSITORY https://github.com/wolfpld/tracy.git
+        GIT_TAG v0.14.1
+        GIT_SHALLOW TRUE
+)
+
+FetchContent_MakeAvailable(tracy)
+
+#set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
+set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
+set(TRACY_NO_EXIT OFF CACHE BOOL "" FORCE)
+
 target_include_directories(bsrenderer PUBLIC "src/")
-target_link_libraries(bsrenderer PUBLIC wayland-client m)
+target_link_libraries(bsrenderer PUBLIC wayland-client m TracyClient)
 
 add_custom_command(TARGET bsrenderer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

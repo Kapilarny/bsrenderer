@@ -6,10 +6,13 @@
 #define BSRENDERER_TEXTURE_SHADER_H
 #include "ishader.h"
 #include "renderer/software/texture.h"
+#include "tracy/Tracy.hpp"
 #include "util/model.h"
 
 struct texture_shader : ishader {
     texture* tex;
+
+    explicit texture_shader(texture* tex) : tex(tex) {}
 
     struct varying {
         vec2<double> uv;
@@ -28,7 +31,7 @@ struct texture_shader : ishader {
         return {clip, uv };
     }
 
-    std::pair<bool, color> fragment_shader(vec3<double> bar) const override {
+    std::pair<bool, color> fragment_shader(const vec3<double>& bar) const override {
         const double inv_w =
             bar.x * varyings[0].inv_w +
             bar.y * varyings[1].inv_w +

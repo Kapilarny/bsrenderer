@@ -19,6 +19,7 @@
 #include "shaders/texture_shader.h"
 
 #include "vertex.h"
+#include "tracy/Tracy.hpp"
 
 software_renderer::software_renderer(window *window)
     : renderer(window), _depth_buffer(depth_buffer(window->get_width(), window->get_height())) {}
@@ -47,23 +48,19 @@ void software_renderer::clear_screen(const color clr) {
 }
 
 void software_renderer::draw_model(model &model, imaterial& material) {
+    ZoneScoped;
+
     DEBUG_ASSERT(_fb, "software_renderer::draw_model() -> Attempt to draw without framebuffer!");
     DEBUG_ASSERT(_cam, "sofware_renderer::draw_model() -> Attempt to draw without an attached camera!");
 
     const auto width = _fb->get_width();
     const auto height = _fb->get_height();
 
-    // auto shader = flat_shader(model, {_cam->_view, _cam->_projection});
-    auto tex = texture("resources/diablo3_pose_diffuse.tga");
-
-    // auto shader = texture_shader(tex, model, );
     auto shader = material.get_shader();
     shader->setup(model, {&_cam->_view, &_cam->_projection});
 
     // indices!
-    srand(0);
     for (i32 face = 0; face < model.indices.size(); face++) {
-        // shader.clr = color(rand() % 0xFFFFFF);
         triangle tri = {
             shader->vertex_shader(face, 0),
             shader->vertex_shader(face, 1),
@@ -108,6 +105,7 @@ void software_renderer::blit_text(const std::string &str, u32 x, u32 y, color cl
 }
 
 void software_renderer::draw_primitive(triangle clip, ishader* shader) {
+    ZoneScoped;
     const auto polygon = triangle_clip::clip_triangle(clip);
 
     for (i32 i = 1; i + 1 < polygon.count; i++) {
@@ -130,23 +128,21 @@ void software_renderer::draw_primitive(triangle clip, ishader* shader) {
 }
 
 void software_renderer::rasterize_triangle(const vec4<double> clip[4], const ishader* shader) {
+    ZoneScoped;
+
     const vec4<double> ndc[3] = { clip[0]/clip[0].w, clip[1]/clip[1].w, clip[2]/clip[2].w };
 
     const auto& viewport = _cam->_viewport;
-
     vec2<double> screen[3] = {
         (viewport*ndc[0]).xy(), (viewport*ndc[1]).xy(), (viewport*ndc[2]).xy()
     };
 
-    const mat<3, 3> ABC = {
-        {
-            screen[0].x, screen[0].y, 1.0,
-            screen[1].x, screen[1].y, 1.0,
-            screen[2].x, screen[2].y, 1.0,
-        }
+    const auto edge_function = [](const vec2<double>& a, const vec2<double>& b, const vec2<double>& p) {
+        return (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x);
     };
 
-    if (ABC.determinant() < 1) return; // cull + triangles less than a px
+    const double area = -edge_function(screen[0], screen[1], screen[2]);
+    if (area < 1.0) return;
 
     const auto width = _fb->get_width();
     const auto height = _fb->get_height();
@@ -160,25 +156,63 @@ void software_renderer::rasterize_triangle(const vec4<double> clip[4], const ish
     const i32 ystart = std::max<i32>(0, b_ystart);
     const i32 yend = std::min<i32>(b_yend, height-1);
 
-    const auto ABC_inv_transp = ABC.invert_transpose();
+    const double inv_area = 1.0 / area;
+    const vec3<double> dx = {
+        screen[1].y - screen[2].y,
+        screen[2].y - screen[0].y,
+        screen[0].y - screen[1].y
+    };
+
+    const vec3<double> ndc_z = {
+        ndc[0].z, ndc[1].z, ndc[2].z
+    };
+
+    const auto pixels = _fb->get_pixels();
+
+    // loop over y for less cache misses
 #pragma omp parallel for
-    for (i32 x = xstart; x <= xend; x++) {
-        for (i32 y = ystart; y <= yend; y++) {
-            vec3 bc = ABC_inv_transp * vec3<double>{static_cast<double>(x), static_cast<double>(y), 1.0};
+    for (i32 y = ystart; y <= yend; y++) {
+        const vec2<double> start = {
+            static_cast<double>(xstart),
+            static_cast<double>(y)
+        };
 
-            if (bc.x < 0 || bc.y < 0 || bc.z < 0) continue;
-            const double z = bc * vec3<double>{ndc[0].z, ndc[1].z, ndc[2].z};
+        vec3<double> edge = {
+            -edge_function(screen[1], screen[2], start),
+            -edge_function(screen[2], screen[0], start),
+            -edge_function(screen[0], screen[1], start)
+        };
 
-            if (z >= _depth_buffer.at(x, y)) continue;
+        for (i32 x = xstart; x <= xend; x++) {
+            if (edge.x >= 0 && edge.y >= 0 && edge.z >= 0) {
+                const auto bc = edge * inv_area;
+                const double z = bc * ndc_z;
 
-            auto [discard, clr] = shader->fragment_shader(bc);
-            if (discard) continue;
+                if (z < _depth_buffer.at(x, y)) {
+                    auto [discard, clr] = shader->fragment_shader(bc);
 
-            _depth_buffer.at(x, y) = z;
-            _draw_dot(x, y, clr.to_argb());
+                    if (!discard) {
+                        _depth_buffer.at(x, y) = z;
+
+                        // _draw_dot(x, y, clr.to_argb());
+                        pixels[(height-y-1)*width+x] = clr.to_argb(); // manual inline of this seems to give a lil boost
+                    }
+                }
+            }
+
+            edge += dx;
         }
     }
 }
+
+void software_renderer::_draw_dot(const u32 x, u32 y, const u32 color) const {
+    const auto width = _fb->get_width();
+    const auto height = _fb->get_height();
+
+    y = height-y-1;
+    _fb->get_pixels()[y*width + x] = color;
+}
+
 
 void software_renderer::_draw_line(vec2<i32> p1, vec2<i32> p2, u32 color) const {
     const bool steep = std::abs(p1.x - p2.x) < std::abs(p1.y - p2.y);
@@ -206,15 +240,6 @@ void software_renderer::_draw_line(vec2<i32> p1, vec2<i32> p2, u32 color) const 
         y += (p2.y > p1.y ? 1 : -1) * (error > p2.x - p1.x);
         error -= 2 * (p2.x - p1.x) * (error > p2.x - p1.x);
     }
-}
-
-void software_renderer::_draw_dot(const u32 x, u32 y, const u32 color) const {
-    const auto width = _fb->get_width();
-    const auto height = _fb->get_height();
-
-    // if (x >= width || y >= height) return;
-    y = height-y-1;
-    _fb->get_pixels()[y*width + x] = color;
 }
 
 depth_buffer::depth_buffer(i32 w, i32 h) : _buffer(w*h, std::numeric_limits<double>::max()), w(w), h(h) {

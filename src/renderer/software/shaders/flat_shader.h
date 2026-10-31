@@ -17,7 +17,7 @@ struct flat_shader : ishader {
         return {*ctx.projection * pos};
     }
 
-    std::pair<bool, color> fragment_shader(vec3<double> bar) const override {
+    std::pair<bool, color> fragment_shader(const vec3<double>& bar) const override {
         return {false, clr};
     }
 };
