@@ -4,7 +4,7 @@
 
 #ifndef BSRENDERER_MATERIAL_H
 #define BSRENDERER_MATERIAL_H
-#include "renderer/software/shaders/ishader.h"
+#include "resources/shaders/ishader.h"
 
 struct imaterial {
     virtual ~imaterial() = default;

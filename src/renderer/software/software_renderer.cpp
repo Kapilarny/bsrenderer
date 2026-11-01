@@ -8,15 +8,14 @@
 #include <cmath>
 
 #include "triangle_clip.h"
-#include "font/font.h"
-#include "materials/material_textured.h"
+#include "resources/materials/material_textured.h"
 #include "platform/platform.h"
 #include "util/log.h"
 #include "util/model.h"
 
 #include "math/bmath.h"
-#include "shaders/flat_shader.h"
-#include "shaders/texture_shader.h"
+#include "resources/shaders/flat_shader.h"
+#include "resources/shaders/texture_shader.h"
 
 #include "vertex.h"
 #include "tracy/Tracy.hpp"
@@ -47,7 +46,7 @@ void software_renderer::clear_screen(const color clr) {
     _fb->clear_buffer(clr.to_argb());
 }
 
-void software_renderer::draw_model(model &model, imaterial& material) {
+void software_renderer::draw_model(const model* mdl, imaterial* material, const mat<4,4>& mat) {
     ZoneScoped;
 
     DEBUG_ASSERT(_fb, "software_renderer::draw_model() -> Attempt to draw without framebuffer!");
@@ -56,11 +55,13 @@ void software_renderer::draw_model(model &model, imaterial& material) {
     const auto width = _fb->get_width();
     const auto height = _fb->get_height();
 
-    auto shader = material.get_shader();
-    shader->setup(model, {&_cam->_view, &_cam->_projection});
+    auto shader = material->get_shader();
+    auto model_view = _cam->_view * mat;
+
+    shader->setup(mdl, {&model_view, &_cam->_projection});
 
     // indices!
-    for (i32 face = 0; face < model.indices.size(); face++) {
+    for (i32 face = 0; face < mdl->face_count(); face++) {
         triangle tri = {
             shader->vertex_shader(face, 0),
             shader->vertex_shader(face, 1),
@@ -68,39 +69,6 @@ void software_renderer::draw_model(model &model, imaterial& material) {
         };
 
         draw_primitive(tri, shader);
-    }
-}
-
-void software_renderer::blit_text(const std::string &str, u32 x, u32 y, color clr) {
-    auto font = font_font;
-
-    const auto find_glyph = [font](char c) -> const glyph_t* {
-        for (i32 i = 0; i < font.glyph_count; i++) {
-            if (font.glyph[i].cp == c) return &font.glyph[i];
-        }
-
-        return nullptr;
-    };
-
-    for (const char c : str) {
-        const auto glyph = find_glyph(c);
-
-        if (!glyph) {
-            log::error("Couldn't find glyph for: {}", c);
-            continue;
-        }
-
-        for (auto gx = 0; gx < glyph->w; gx++) {
-            for (auto gy = 0; gy < glyph->h; gy++) {
-                const u32 dot = reinterpret_cast<const u32*>(glyph->data)[(glyph->h - gy - 1) * glyph->w + gx];
-                const color dot_clr = color(dot);
-                if (dot_clr.b == 255) {
-                    _draw_dot(gx + x, gy + y, clr.to_argb());
-                }
-            }
-        }
-
-        x += glyph->advance;
     }
 }
 
@@ -117,7 +85,7 @@ void software_renderer::draw_primitive(triangle clip, ishader* shader) {
 
         shader->setup_triangle(tri);
 
-        vec4<double> clip[3] = {
+        vec4<float> clip[3] = {
             polygon.vertices[0].pos,
             polygon.vertices[i].pos,
             polygon.vertices[i+1].pos
@@ -127,21 +95,21 @@ void software_renderer::draw_primitive(triangle clip, ishader* shader) {
     }
 }
 
-void software_renderer::rasterize_triangle(const vec4<double> clip[4], const ishader* shader) {
+void software_renderer::rasterize_triangle(const vec4<float> clip[4], const ishader* shader) {
     ZoneScoped;
 
-    const vec4<double> ndc[3] = { clip[0]/clip[0].w, clip[1]/clip[1].w, clip[2]/clip[2].w };
+    const vec4<float> ndc[3] = { clip[0]/clip[0].w, clip[1]/clip[1].w, clip[2]/clip[2].w };
 
     const auto& viewport = _cam->_viewport;
-    vec2<double> screen[3] = {
+    vec2<float> screen[3] = {
         (viewport*ndc[0]).xy(), (viewport*ndc[1]).xy(), (viewport*ndc[2]).xy()
     };
 
-    const auto edge_function = [](const vec2<double>& a, const vec2<double>& b, const vec2<double>& p) {
+    const auto edge_function = [](const vec2<float>& a, const vec2<float>& b, const vec2<float>& p) {
         return (p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x);
     };
 
-    const double area = -edge_function(screen[0], screen[1], screen[2]);
+    const float area = -edge_function(screen[0], screen[1], screen[2]);
     if (area < 1.0) return;
 
     const auto width = _fb->get_width();
@@ -156,14 +124,14 @@ void software_renderer::rasterize_triangle(const vec4<double> clip[4], const ish
     const i32 ystart = std::max<i32>(0, b_ystart);
     const i32 yend = std::min<i32>(b_yend, height-1);
 
-    const double inv_area = 1.0 / area;
-    const vec3<double> dx = {
+    const float inv_area = 1.0 / area;
+    const vec3<float> dx = {
         screen[1].y - screen[2].y,
         screen[2].y - screen[0].y,
         screen[0].y - screen[1].y
     };
 
-    const vec3<double> ndc_z = {
+    const vec3<float> ndc_z = {
         ndc[0].z, ndc[1].z, ndc[2].z
     };
 
@@ -172,12 +140,12 @@ void software_renderer::rasterize_triangle(const vec4<double> clip[4], const ish
     // loop over y for less cache misses
 #pragma omp parallel for
     for (i32 y = ystart; y <= yend; y++) {
-        const vec2<double> start = {
-            static_cast<double>(xstart),
-            static_cast<double>(y)
+        const vec2<float> start = {
+            static_cast<float>(xstart),
+            static_cast<float>(y)
         };
 
-        vec3<double> edge = {
+        vec3<float> edge = {
             -edge_function(screen[1], screen[2], start),
             -edge_function(screen[2], screen[0], start),
             -edge_function(screen[0], screen[1], start)
@@ -186,7 +154,7 @@ void software_renderer::rasterize_triangle(const vec4<double> clip[4], const ish
         for (i32 x = xstart; x <= xend; x++) {
             if (edge.x >= 0 && edge.y >= 0 && edge.z >= 0) {
                 const auto bc = edge * inv_area;
-                const double z = bc * ndc_z;
+                const float z = bc * ndc_z;
 
                 if (z < _depth_buffer.at(x, y)) {
                     auto [discard, clr] = shader->fragment_shader(bc);
@@ -242,15 +210,15 @@ void software_renderer::_draw_line(vec2<i32> p1, vec2<i32> p2, u32 color) const 
     }
 }
 
-depth_buffer::depth_buffer(i32 w, i32 h) : _buffer(w*h, std::numeric_limits<double>::max()), w(w), h(h) {
+depth_buffer::depth_buffer(i32 w, i32 h) : _buffer(w*h, std::numeric_limits<float>::max()), w(w), h(h) {
 }
 
 void depth_buffer::clear() {
     for (auto& el : _buffer) {
-        el = std::numeric_limits<double>::max();
+        el = std::numeric_limits<float>::max();
     }
 }
 
-double& depth_buffer::at(i32 x, i32 y) {
+float& depth_buffer::at(i32 x, i32 y) {
     return _buffer[y*w + x];
 }

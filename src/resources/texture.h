@@ -15,7 +15,7 @@ struct texture {
 
     texture(const std::string& str);
 
-    color sample(const vec2<double>& uv) const;
+    color sample(const vec2<float> &uv) const;
 };
 
 

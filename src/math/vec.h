@@ -14,7 +14,7 @@ template <i32 N, typename T>
 struct vec {
     T data[N]{};
 
-    double magnitude() {
+    float magnitude() {
         return (*this) * (*this);
     }
 
@@ -22,13 +22,13 @@ struct vec {
         return *this / magnitude();
     }
 
-    constexpr double& operator[](const i32 idx) { return data[idx]; }
-    constexpr const double& operator[](const i32 idx) const { return data[idx]; }
+    constexpr T& operator[](const i32 idx) { return data[idx]; }
+    constexpr const T& operator[](const i32 idx) const { return data[idx]; }
 };
 
 template<i32 N, typename T>
-double operator*(const vec<N, T>& a, const vec<N, T>& b) {
-    double res = 0;
+T operator*(const vec<N, T>& a, const vec<N, T>& b) {
+    T res = 0;
     for (i32 i = 0; i < N; i++) {
         res += a[i] * b[i];
     }
@@ -102,12 +102,11 @@ struct vec<3, T> {
     constexpr T& operator[](const i32 idx) { DEBUG_ASSERT(idx < 3, "subscript out of range"); return idx ? (idx == 1 ? y : z) : x; }
     constexpr const T& operator[](const i32 idx) const { DEBUG_ASSERT(idx < 3, "subscript out of range"); return idx ? (idx == 1 ? y : z) : x; }
 
-
     vec3<T>& operator+=(const vec3<T>& a) {
         return *this = *this + a;
     }
 
-    double magnitude() {
+    T magnitude() {
         return std::sqrt((*this) * (*this));
     }
 
@@ -133,7 +132,7 @@ struct vec<4, T> {
         return idx < 2 ? (idx ? y : x) : (idx == 2 ? z : w);
     }
 
-    double magnitude() {
+    T magnitude() {
         return (*this) * (*this);
     }
 
@@ -149,7 +148,7 @@ namespace bmath {
     }
 
     template<typename T>
-    T dot(const vec3<double>& a, const vec3<double>& b) {
+    T dot(const vec3<T>& a, const vec3<T>& b) {
         T result{};
         for (i32 i = 0; i < 3; i++) {
             result += a[i] * b[i];

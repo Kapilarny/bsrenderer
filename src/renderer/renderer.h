@@ -6,6 +6,7 @@
 #define BSRENDERER_RENDERER_H
 #include "camera.h"
 #include "defines.h"
+#include "engine/transform.h"
 #include "math/vec.h"
 
 class imaterial;
@@ -63,8 +64,7 @@ public:
 
     virtual void attach_camera(camera* cam) = 0;
 
-    virtual void draw_model(model& model, imaterial& material) = 0;
-    virtual void blit_text(const std::string& str, u32 x, u32 y, color clr) = 0;
+    virtual void draw_model(const model* model, imaterial* material, const mat<4,4>& mat) = 0;
 protected:
     window* _window;
 };

@@ -35,17 +35,20 @@ add_executable(bsrenderer src/main.cpp
         src/platform/linux/relative-pointer-unstable-v1.cpp
         src/platform/linux/pointer-constraints-unstable.cpp
         src/platform/linux/pointer-constraints-unstable.h
-        src/font/font.c
-        src/renderer/software/shaders/ishader.h
-        src/renderer/software/shaders/flat_shader.h
+        src/resources/shaders/ishader.h
+        src/resources/shaders/flat_shader.h
         src/external/stb_image.h
         src/external/stb_image.cpp
-        src/renderer/software/texture.cpp
-        src/renderer/software/texture.h
-        src/renderer/software/shaders/texture_shader.h
-        src/renderer/software/materials/imaterial.h
-        src/renderer/software/materials/material_textured.h
+        src/resources/texture.cpp
+        src/resources/texture.h
+        src/resources/shaders/texture_shader.h
+        src/resources/materials/imaterial.h
+        src/resources/materials/material_textured.h
         src/renderer/software/vertex.h
+        src/engine/transform.h
+        src/engine/game_object.h
+        src/engine/render_system.h
+        src/util/dirty_value.h
 )
 
 include(FetchContent)

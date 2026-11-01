@@ -17,9 +17,9 @@ public:
     depth_buffer(i32 w, i32 h);
     void clear();
 
-    double& at(i32 x, i32 y);
+    float& at(i32 x, i32 y);
 private:
-    std::vector<double> _buffer;
+    std::vector<float> _buffer;
     i32 w, h;
 };
 
@@ -32,13 +32,12 @@ public:
     void end_frame() override;
     void clear_screen(color clr) override;
 
-    void draw_model(model &model, imaterial& material) override;
-    void blit_text(const std::string& str, u32 x, u32 y, color clr) override;
+    void draw_model(const model* mdl, imaterial* material, const mat<4,4>& mat) override;
 
     void attach_camera(camera *cam) override;
 
     void draw_primitive(triangle clip, ishader *shader);
-    void rasterize_triangle(const vec4<double> clip[4], const ishader *shader);
+    void rasterize_triangle(const vec4<float> clip[], const ishader *shader);
 private:
     void _draw_dot(u32 x, u32 y, u32 color) const;
     void _draw_line(vec2<i32> p1, vec2<i32> p2, u32 color) const;

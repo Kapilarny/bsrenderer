@@ -13,18 +13,18 @@ template<i32 n> struct dt;
 
 template<i32 Cols, i32 Rows>
 struct mat {
-    vec<Cols, double> data[Rows];
+    vec<Cols, float> data[Rows];
 
-    constexpr vec<Cols, double>& operator[](i32 i) { return data[i]; }
-    constexpr const vec<Cols, double>& operator[](i32 i) const { return data[i]; }
-    constexpr double& operator()(i32 row, i32 col) { return data[row][col]; }
-    constexpr const double& operator()(i32 row, i32 col) const { return data[row][col]; }
+    constexpr vec<Cols, float>& operator[](i32 i) { return data[i]; }
+    constexpr const vec<Cols, float>& operator[](i32 i) const { return data[i]; }
+    constexpr float& operator()(i32 row, i32 col) { return data[row][col]; }
+    constexpr const float& operator()(i32 row, i32 col) const { return data[row][col]; }
 
-    [[nodiscard]] double determinant() const {
+    [[nodiscard]] float determinant() const {
         return dt<Cols>::determinant(*this);
     }
 
-    [[nodiscard]] double cofactor(const i32 row, const i32 col) const {
+    [[nodiscard]] float cofactor(const i32 row, const i32 col) const {
         mat<Cols-1, Rows-1> submatrix;
         for (i32 i=0; i < Cols-1; ++i) {
             for (i32 j = 0; j < Rows-1; ++j) {
@@ -62,13 +62,13 @@ struct mat {
 };
 
 template<i32 Cols, i32 Rows>
-vec<Rows, double> operator*(const vec<Rows, double>& lhs, const mat<Cols, Rows>& rhs) {
+vec<Rows, float> operator*(const vec<Rows, float>& lhs, const mat<Cols, Rows>& rhs) {
     return (mat<1, Rows>(lhs)*rhs)[0];
 }
 
 template<i32 Cols, i32 Rows>
-vec<Rows, double> operator*(const mat<Cols, Rows>& lhs, const vec<Cols, double>& rhs) {
-    vec<Rows, double> result;
+vec<Rows, float> operator*(const mat<Cols, Rows>& lhs, const vec<Cols, float>& rhs) {
+    vec<Rows, float> result;
     for (i32 i = 0; i < Rows; ++i) {
         result[i] = lhs[i] * rhs;
     }
@@ -91,7 +91,7 @@ mat<B, C> operator*(const mat<A, C>& lhs, const mat<B, A>& rhs) {
 }
 
 template<i32 Rows, i32 Cols>
-mat<Rows, Cols> operator*(const mat<Rows, Cols>& lhs, const double& scalar) {
+mat<Rows, Cols> operator*(const mat<Rows, Cols>& lhs, const float& scalar) {
     mat<Rows, Cols> result;
     for (i32 i = 0; i < Rows; ++i) {
         result[i] = lhs[i] * scalar;
@@ -100,7 +100,7 @@ mat<Rows, Cols> operator*(const mat<Rows, Cols>& lhs, const double& scalar) {
 }
 
 template<i32 Rows, i32 Cols>
-mat<Rows, Cols> operator/(const mat<Rows, Cols>& lhs, const double& scalar) {
+mat<Rows, Cols> operator/(const mat<Rows, Cols>& lhs, const float& scalar) {
     mat<Rows, Cols> result;
     for (i32 i = 0; i < Rows; ++i) {
         result[i] = lhs[i] / scalar;
@@ -132,8 +132,8 @@ mat<Rows, Cols> operator-(const mat<Rows, Cols>& lhs, const mat<Rows, Cols>& rhs
 
 template<i32 n>
 struct dt {
-    static double determinant(const mat<n, n>& m) {
-        double result = 0;
+    static float determinant(const mat<n, n>& m) {
+        float result = 0;
         for (i32 i = 0; i < n; i++) {
             result += m[0][i] * m.cofactor(0, i);
         }
@@ -143,7 +143,7 @@ struct dt {
 
 template<>
 struct dt<1> {
-    static double determinant(const mat<1, 1>& m) {
+    static float determinant(const mat<1, 1>& m) {
         return m[0][0];
     }
 };

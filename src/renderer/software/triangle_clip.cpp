@@ -8,7 +8,7 @@
 
 using polygon = triangle_clip::polygon;
 
-double triangle_clip::plane_distance(const vec4<double> &p, i32 plane) {
+float triangle_clip::plane_distance(const vec4<float> &p, i32 plane) {
     switch (plane) {
         case 0: return p.w + p.x; // left
         case 1: return p.w - p.x; // right
@@ -27,7 +27,7 @@ vertex triangle_clip::intersect(const vertex &a, const vertex &b, i32 plane) {
     const auto da = plane_distance(a.pos, plane);
     const auto db = plane_distance(b.pos, plane);
 
-    const double t = da / (da - db);
+    const float t = da / (da - db);
 
     return {
         a.pos + (b.pos - a.pos) * t,
@@ -62,8 +62,8 @@ polygon triangle_clip::clip_triangle(const triangle tri) {
             const auto& curr = a.vertices[i];
             const auto& prev = a.vertices[(i + a.count - 1) % a.count];
 
-            const double curr_dist = plane_distance(curr.pos, plane);
-            const double prev_dist = plane_distance(prev.pos, plane);
+            const float curr_dist = plane_distance(curr.pos, plane);
+            const float prev_dist = plane_distance(prev.pos, plane);
 
             const bool curr_inside = curr_dist >= 0.0;
             const bool prev_inside = prev_dist >= 0.0;

@@ -7,8 +7,8 @@
 #include <utility>
 
 #include "imaterial.h"
-#include "renderer/software/texture.h"
-#include "renderer/software/shaders/texture_shader.h"
+#include "resources/texture.h"
+#include "resources/shaders/texture_shader.h"
 
 struct material_textured : imaterial {
     texture tex;

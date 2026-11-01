@@ -23,15 +23,15 @@ struct shader_ctx {
 struct ishader {
     virtual ~ishader() = default;
 
-    void setup(const model& m, const shader_ctx& c) {
-        mdl = &m;
+    void setup(const model* m, const shader_ctx& c) {
+        mdl = m;
         ctx = c;
     }
 
     virtual void setup_triangle(const vertex tri[3]) {}
 
     virtual vertex vertex_shader(i32 face, i32 vert) = 0;
-    virtual std::pair<bool, color> fragment_shader(const vec3<double>& bar) const = 0;
+    virtual std::pair<bool, color> fragment_shader(const vec3<float>& bar) const = 0;
 
     const model* mdl{};
     shader_ctx ctx{};

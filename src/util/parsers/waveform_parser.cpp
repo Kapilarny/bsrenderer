@@ -17,8 +17,10 @@ bool waveform_parser::parse(const std::string &filename, model* model) {
         return false;
     }
 
-    model->vertices.clear();
-    model->indices.clear();
+    model->_vertices.clear();
+    model->_indices.vertexes.clear();
+    model->_indices.normals.clear();
+    model->_indices.uvs.clear();
 
     // std::string command;
     std::string line;
@@ -33,8 +35,15 @@ bool waveform_parser::parse(const std::string &filename, model* model) {
         if (command == "v") {
             double x, y, z;
             iss >> x >> y >> z;
-            model->vertices.emplace_back(x, y, z);
+            model->_vertices.emplace_back(x, y, z);
         } else if (command == "f") {
+            // this is the laziest shit of all time, but idc
+            struct face_index {
+                i32 vertex;
+                i32 uv;
+                i32 normal;
+            };
+
             auto read_face_idx = [](std::string& part) {
                 face_index idx{-1, -1, -1};
 
@@ -55,23 +64,26 @@ bool waveform_parser::parse(const std::string &filename, model* model) {
             };
 
             std::string part;
-            vec3<face_index> idx;
+            // vec3<face_index> idx;
             for (int i = 0; i < 3; i++) {
                 if (!(iss >> part)) {
                     log::error("Bad waveform file!");
                     return false;
                 }
 
-                idx[i] = read_face_idx(part);
+                auto f = read_face_idx(part);
+                model->_indices.vertexes.emplace_back(f.vertex);
+                model->_indices.normals.emplace_back(f.normal);
+                model->_indices.uvs.emplace_back(f.uv);
             }
 
-            model->indices.emplace_back(idx);
+            // model->indices.emplace_back(idx);
             // TODO: parse it properly
         } else if (command == "vt") {
-            vec2<double> uv;
+            vec2<float> uv;
             iss >> uv.x;
             iss >> uv.y;
-            model->uvs.emplace_back(uv);
+            model->_uvs.emplace_back(uv);
         }
     }
 

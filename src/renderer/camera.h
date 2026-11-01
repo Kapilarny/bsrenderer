@@ -13,14 +13,14 @@ public:
 
     void update();
 
-    void move(double forward, double right, double up, double dt);
-    void rotate(double dx, double dy);
+    void move(float forward, float right, float up, float dt);
+    void rotate(float dx, float dy);
 
-    void set_perspective(double fovy, double aspect, double near, double far);
+    void set_perspective(float fovy, float aspect, float near, float far);
     void set_viewport(i32 x, i32 y, i32 w, i32 h);
 
-    vec3<double> pos{}; // TODO: maybe move this to privates?
-    vec3<double> _up{0, 1, 0}, right{};
+    vec3<float> pos{}; // TODO: maybe move this to privates?
+    vec3<float> _up{0, 1, 0}, right{};
 
     double yaw = -std::numbers::pi / 2.0;
     double pitch{};
@@ -28,8 +28,8 @@ private:
     friend class software_renderer;
 
     void _look_at();
-    vec3<double> _forward() const;
-    vec3<double> _right() const;
+    vec3<float> _forward() const;
+    vec3<float> _right() const;
 
     mat<4, 4> _viewport;
     mat<4, 4> _projection;

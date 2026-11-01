@@ -9,7 +9,6 @@
 texture::texture(const std::string &str) {
     i32 w, h, channels;
 
-    // TODO: flip this if shit doesnt work
     stbi_set_flip_vertically_on_load(true);
 
     const auto data = stbi_load(str.c_str(), &w, &h, &channels, 4);
@@ -34,9 +33,9 @@ texture::texture(const std::string &str) {
     stbi_image_free(data);
 }
 
-color texture::sample(const vec2<double> &uv) const {
-    const double u = std::clamp(uv.x, 0.0, 1.0);
-    const double v = std::clamp(uv.y, 0.0, 1.0);
+color texture::sample(const vec2<float> &uv) const {
+    const float u = std::clamp(uv.x, 0.0f, 1.0f);
+    const float v = std::clamp(uv.y, 0.0f, 1.0f);
 
     const u32 x = static_cast<u32>(u * (width-1));
     const u32 y = static_cast<u32>(v * (height-1));

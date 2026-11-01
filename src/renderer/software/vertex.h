@@ -7,8 +7,8 @@
 #include "math/vec.h"
 
 struct vertex {
-    vec4<double> pos;
-    vec2<double> uv;
+    vec4<float> pos;
+    vec2<float> uv;
 };
 
 using triangle = vertex[3];

@@ -21,7 +21,7 @@ namespace triangle_clip {
         }
     };
 
-    double plane_distance(const vec4<double>& p, i32 plane);
+    float plane_distance(const vec4<float> &p, i32 plane);
     vertex intersect(const vertex& a, const vertex& b, i32 plane);
     polygon clip_triangle(const vertex tri[3]);
 }
