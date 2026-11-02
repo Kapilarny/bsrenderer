@@ -41,6 +41,7 @@ int main() {
 
     auto cam = camera();
     cam.pos = {10.75, 0.0, 20};
+    // cam.pos = {0, 0, 2};
 
     cam.set_perspective(60.0 * std::numbers::pi / 180.0, static_cast<double>(width) / static_cast<double>(height), 0.1, 1000);
     cam.set_viewport(0, 0, width, height);
@@ -61,9 +62,9 @@ int main() {
 
     for (i32 i = 0; i < 100; i++) {
         auto entry = render_system.register_entry(render_entry{.mesh = &m, .material = &tex_material });
-        t.position.get_m().x += 2.0;
+        t.position.x += 2.0;
 
-        render_system.get_transform(entry).position.get_m().x = t.position.get_i().x;
+        render_system.get_transform(entry).position.x = t.position.x;
     }
 
     while (!w.should_close()) {
@@ -79,8 +80,7 @@ int main() {
         }
 
         if (input.get_key_state(keyboard_key::T) == key_state::PRESSED) {
-            // render_system.deregister_entry(4);
-            render_system.get_transform(test).position.get_m().z += 2.0;
+            render_system.get_transform(test).position.z += 2.0;
         }
 
         double forward = input.is_key_down(keyboard_key::W) - input.is_key_down(keyboard_key::S);
@@ -97,7 +97,6 @@ int main() {
         rend->clear_screen(color(0));
 
         render_system.draw_all(rend.get());
-
 
         // rend->blit_text("bsrenderer", 10, 80, txt_color);
         // rend->blit_text("frametime: " + std::to_string(last_frame_ms), 10, 10, txt_color);

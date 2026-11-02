@@ -13,13 +13,16 @@ namespace triangle_clip {
     constexpr u64 MAX_VERTICES = 12;
 
     struct polygon {
-        std::array<vertex, MAX_VERTICES> vertices{};
+        std::array<vertex, MAX_VERTICES> vertices;
         u64 count = 0;
 
         void push_back(const vertex& v) {
             vertices[count++] = v;
         }
     };
+
+    using clip_code = u8;
+    clip_code compute_clip_code(const vec4<float>&p);
 
     float plane_distance(const vec4<float> &p, i32 plane);
     vertex intersect(const vertex& a, const vertex& b, i32 plane);

@@ -18,8 +18,17 @@ class model {
 public:
     explicit model(const std::string& model_path);
 
+
+    const vec3<float>& get_vertex(const i32 idx) const {
+        return _vertices[idx];
+    }
+
     const vec3<float>& get_vertex(const i32 face, const i32 vert) const {
         return _vertices[_indices.vertexes[face*3+vert]];
+    }
+
+    const vec2<float>& get_uv(const i32 idx) const {
+        return _uvs[idx];
     }
 
     const vec2<float>& get_uv(const i32 face, const i32 vert) const {

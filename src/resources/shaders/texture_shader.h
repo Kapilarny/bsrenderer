@@ -21,6 +21,10 @@ struct texture_shader : ishader {
 
     varying varyings[3];
 
+    std::unique_ptr<ishader> clone() const override {
+        return std::make_unique<texture_shader>(tex);
+    }
+
     vertex vertex_shader(const i32 face, const i32 vert) override {
         const auto [vx, vy, vz] = mdl->get_vertex(face, vert);
         const auto uv = mdl->get_uv(face, vert);
@@ -50,7 +54,7 @@ struct texture_shader : ishader {
     void setup_triangle(const vertex tri[3]) override {
         for (i32 i = 0; i < 3; i++) {
             varyings[i].uv = tri[i].uv;
-            varyings[i].inv_w = 1.0 / tri[i].pos.w;
+            varyings[i].inv_w = 1.0f / tri[i].pos.w;
         }
     }
 };

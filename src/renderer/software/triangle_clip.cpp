@@ -5,8 +5,19 @@
 #include "triangle_clip.h"
 
 #include "software_renderer.h"
+#include "tracy/Tracy.hpp"
 
 using polygon = triangle_clip::polygon;
+
+triangle_clip::clip_code triangle_clip::compute_clip_code(const vec4<float> &p) {
+    return
+        (p.x < -p.w ? 1 << 0 : 0) |
+        (p.x >  p.w ? 1 << 1 : 0) |
+        (p.y < -p.w ? 1 << 2 : 0) |
+        (p.y >  p.w ? 1 << 3 : 0) |
+        (p.z < -p.w ? 1 << 4 : 0) |
+        (p.z >  p.w ? 1 << 5 : 0);
+}
 
 float triangle_clip::plane_distance(const vec4<float> &p, i32 plane) {
     switch (plane) {
@@ -36,31 +47,31 @@ vertex triangle_clip::intersect(const vertex &a, const vertex &b, i32 plane) {
 }
 
 polygon triangle_clip::clip_triangle(const triangle tri) {
-    polygon a, b;
+    ZoneScoped;
+
+    const auto c0 = compute_clip_code(tri[0].pos);
+    const auto c1 = compute_clip_code(tri[1].pos);
+    const auto c2 = compute_clip_code(tri[2].pos);
+
+    if ((c0 & c1 & c2) != 0) return {};
+
+    polygon aP, bP;
 
     for (i32 i = 0; i < 3; i++) {
-        a.push_back(tri[i]);
+        aP.push_back(tri[i]);
     }
 
+    if ((c0 | c1 | c2) == 0) {
+        return aP;
+    }
+
+    polygon *a = &aP, *b = &bP;
+
     for (i32 plane = 0; plane < 6; plane++) {
-        bool all_outside = true;
-        for (i32 i = 0; i < a.count; i++) {
-            if (plane_distance(a.vertices[i].pos, plane) >= 0.0) {
-                all_outside = false;
-                break;
-            }
-        }
-
-        // quick escape if all verts are outside the plane
-        if (all_outside) {
-            a.count = 0;
-            break;
-        }
-
-        b.count = 0;
-        for (i32 i = 0; i < a.count; i++) {
-            const auto& curr = a.vertices[i];
-            const auto& prev = a.vertices[(i + a.count - 1) % a.count];
+        b->count = 0;
+        for (i32 i = 0; i < a->count; i++) {
+            const auto& curr = a->vertices[i];
+            const auto& prev = a->vertices[(i + a->count - 1) % a->count];
 
             const float curr_dist = plane_distance(curr.pos, plane);
             const float prev_dist = plane_distance(prev.pos, plane);
@@ -69,19 +80,19 @@ polygon triangle_clip::clip_triangle(const triangle tri) {
             const bool prev_inside = prev_dist >= 0.0;
 
             if (curr_inside && prev_inside) {
-                b.push_back(curr); // both inside
+                b->push_back(curr); // both inside
             } else if (prev_inside && !curr_inside) {
-                b.push_back(intersect(prev, curr, plane)); // leaving frustum
+                b->push_back(intersect(prev, curr, plane)); // leaving frustum
             } else if (!prev_inside && curr_inside) {
-                b.push_back(intersect(prev, curr, plane)); // entering frustum
-                b.push_back(curr);
+                b->push_back(intersect(prev, curr, plane)); // entering frustum
+                b->push_back(curr);
             }
         }
 
         std::swap(a, b);
 
-        if (a.count == 0) break;
+        if (a->count == 0) break;
     }
 
-    return a;
+    return *a;
 }

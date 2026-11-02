@@ -9,18 +9,22 @@
 #include "util/dirty_value.h"
 
 struct transform {
-    dirty_value<vec3<float>> position{{0, 0, 0}};
-    dirty_value<vec3<float>> rotation{{0, 0, 0}};
-    dirty_value<vec3<float>> scale{{1, 1, 1}};
+    vec3<float> position{0, 0, 0};
+    vec3<float> rotation{0, 0, 0};
+    vec3<float> scale{1, 1, 1};
+
+    void mark_dirty() {
+        _dirty = true;
+    }
 
     bool should_rebuild() {
-        return position.is_dirty() || rotation.is_dirty() || scale.is_dirty();
+        return _dirty;
     }
 
     mat<4, 4> rebuild_matrix() {
-        const auto& pos = position.get_i();
-        const auto& rot = rotation.get_i();
-        const auto& sc = scale.get_i();
+        const auto& pos = position;
+        const auto& rot = rotation;
+        const auto& sc = scale;
 
         const auto translation = mat<4, 4>{
             1, 0, 0, pos.x,
@@ -65,12 +69,13 @@ struct transform {
             0, 0, 0, 1
         };
 
-        position.clear_dirty();
-        rotation.clear_dirty();
-        scale.clear_dirty();
+        _dirty = false;
 
         return translation * rot_z * rot_y * rot_x * scaling;
     }
+
+private:
+    bool _dirty = true;
 };
 
 #endif //BSRENDERER_TRANSFORM_H

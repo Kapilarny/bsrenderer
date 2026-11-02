@@ -49,6 +49,8 @@ add_executable(bsrenderer src/main.cpp
         src/engine/game_object.h
         src/engine/render_system.h
         src/util/dirty_value.h
+        src/util/thread_pool.cpp
+        src/util/thread_pool.h
 )
 
 include(FetchContent)
@@ -65,6 +67,16 @@ FetchContent_MakeAvailable(tracy)
 #set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
 set(TRACY_NO_EXIT OFF CACHE BOOL "" FORCE)
+
+target_compile_options(bsrenderer PRIVATE
+    $<$<CONFIG:Release>:-O3>
+    $<$<CONFIG:Release>:-march=native>
+    $<$<CONFIG:RelWithDebInfo>:-O3>
+    $<$<CONFIG:RelWithDebInfo>:-march=native>
+    $<$<CONFIG:RelWithDebInfo>:-g>
+#    $<$<CXX_COMPILER_ID:GNU>:-fopt-info-vec-optimized>
+#    $<$<CXX_COMPILER_ID:GNU>:-fopt-info-vec-missed>
+)
 
 target_include_directories(bsrenderer PUBLIC "src/")
 target_link_libraries(bsrenderer PUBLIC wayland-client m TracyClient)

@@ -184,7 +184,9 @@ public:
         // TODO: perform cleanup
     }
 
-    void present_framebuffer(const inner_framebuffer* buf) const {
+    void present_framebuffer(inner_framebuffer* buf) const {
+        buf->busy = true;
+
         wl_surface_attach(_surface, buf->buffer, 0, 0);
         wl_surface_damage_buffer(_surface, 0, 0, buf->width, buf->height);
         wl_surface_commit(_surface);
@@ -352,7 +354,13 @@ framebuffer *window::begin_frame() {
     FATAL_ASSERT(!_drawing_frame, "window::begin_frame called whilst already drawing a frame!");
     _run_preframe_events();
     _drawing_frame = true;
-    return _framebuffers[_frame_counter % 2];
+
+    const auto& framebuffer = _framebuffers[_frame_counter % 2];
+    while (framebuffer->_inner->busy) {
+        wl_display_dispatch(wl_inst->display);
+    }
+
+    return framebuffer;
 }
 
 void window::end_frame() {

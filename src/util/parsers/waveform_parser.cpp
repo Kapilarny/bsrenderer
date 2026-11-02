@@ -33,7 +33,7 @@ bool waveform_parser::parse(const std::string &filename, model* model) {
         iss >> command;
 
         if (command == "v") {
-            double x, y, z;
+            float x, y, z;
             iss >> x >> y >> z;
             model->_vertices.emplace_back(x, y, z);
         } else if (command == "f") {

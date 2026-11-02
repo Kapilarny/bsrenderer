@@ -28,6 +28,8 @@ struct ishader {
         ctx = c;
     }
 
+    virtual std::unique_ptr<ishader> clone() const = 0;
+
     virtual void setup_triangle(const vertex tri[3]) {}
 
     virtual vertex vertex_shader(i32 face, i32 vert) = 0;

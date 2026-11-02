@@ -17,6 +17,7 @@ struct render_entry {
     imaterial* material;
 };
 
+// TODO: Make static entities and dynamic separate to cheap out on updating matrices
 class render_system {
 public:
     u32 register_entry(render_entry entry) {

@@ -10,11 +10,17 @@
 struct flat_shader : ishader {
     color clr{};
 
+    explicit flat_shader(const color& clr) : clr(clr) {}
+
     vertex vertex_shader(const i32 face, const i32 vert) override {
         const auto [vx, vy, vz] = mdl->get_vertex(face, vert);
         vec4<float> pos = *ctx.model_view * vec4<float>(vx, vy, vz, 1.0);
 
         return {*ctx.projection * pos};
+    }
+
+    std::unique_ptr<ishader> clone() const override {
+        return std::make_unique<flat_shader>(clr);
     }
 
     std::pair<bool, color> fragment_shader(const vec3<float>& bar) const override {
