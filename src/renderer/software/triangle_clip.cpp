@@ -47,7 +47,7 @@ vertex triangle_clip::intersect(const vertex &a, const vertex &b, i32 plane) {
 }
 
 polygon triangle_clip::clip_triangle(const triangle tri) {
-    ZoneScoped;
+    // ZoneScoped;
 
     const auto c0 = compute_clip_code(tri[0].pos);
     const auto c1 = compute_clip_code(tri[1].pos);

@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 4.1)
+cmake_minimum_required(VERSION 4.0.2)
 project(bsrenderer)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -51,6 +51,7 @@ add_executable(bsrenderer src/main.cpp
         src/util/dirty_value.h
         src/util/thread_pool.cpp
         src/util/thread_pool.h
+        src/platform/win32/platform_win32.cpp
 )
 
 include(FetchContent)
@@ -64,7 +65,9 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(tracy)
 
-#set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
+
+set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
+set(TRACY_DISABLE OFF CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
 set(TRACY_NO_EXIT OFF CACHE BOOL "" FORCE)
 
@@ -78,8 +81,16 @@ target_compile_options(bsrenderer PRIVATE
 #    $<$<CXX_COMPILER_ID:GNU>:-fopt-info-vec-missed>
 )
 
+set(PLATFORM_LIBS)
+
+if(WIN32)
+    list(APPEND PLATFORM_LIBRARIES user32 gdi32)
+elseif(UNIX AND NOT APPLE)
+    list(APPEND PLATFORM_LIBRARIES wayland-client m)
+endif()
+
 target_include_directories(bsrenderer PUBLIC "src/")
-target_link_libraries(bsrenderer PUBLIC wayland-client m TracyClient)
+target_link_libraries(bsrenderer PUBLIC ${PLATFORM_LIBS} TracyClient)
 
 add_custom_command(TARGET bsrenderer POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

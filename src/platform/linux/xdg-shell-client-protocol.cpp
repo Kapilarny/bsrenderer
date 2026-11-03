@@ -28,6 +28,9 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#include "defines.h"
+#ifdef BSRENDERER_LINUX
+
 #include <stdbool.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -181,3 +184,5 @@ WL_PRIVATE const struct wl_interface xdg_popup_interface = {
 	3, xdg_popup_requests,
 	3, xdg_popup_events,
 };
+
+#endif

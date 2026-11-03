@@ -4,6 +4,8 @@
 
 #include "camera.h"
 
+#include <algorithm>
+
 void camera::update() {
     _look_at();
 }
