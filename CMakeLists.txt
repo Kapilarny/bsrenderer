@@ -52,6 +52,10 @@ add_executable(bsrenderer src/main.cpp
         src/util/thread_pool.cpp
         src/util/thread_pool.h
         src/platform/win32/platform_win32.cpp
+        src/resources/font/font.cpp
+        src/resources/font/font.h
+        src/resources/materials/material_font.h
+        src/resources/shaders/font_shader.h
 )
 
 include(FetchContent)
@@ -84,9 +88,9 @@ target_compile_options(bsrenderer PRIVATE
 set(PLATFORM_LIBS)
 
 if(WIN32)
-    list(APPEND PLATFORM_LIBRARIES user32 gdi32)
-elseif(UNIX AND NOT APPLE)
-    list(APPEND PLATFORM_LIBRARIES wayland-client m)
+    list(APPEND PLATFORM_LIBS user32 gdi32)
+elseif(LINUX)
+    list(APPEND PLATFORM_LIBS wayland-client m)
 endif()
 
 target_include_directories(bsrenderer PUBLIC "src/")

@@ -59,6 +59,10 @@ struct mat {
     [[nodiscard]] mat invert() const {
         return invert_transpose().transpose();
     }
+
+    mat<4, 4> &operator*=(const mat & mat) {
+        return *this = *this * mat;
+    }
 };
 
 template<i32 Cols, i32 Rows>

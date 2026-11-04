@@ -29,6 +29,7 @@ struct ishader {
     }
 
     virtual std::unique_ptr<ishader> clone() const = 0;
+    virtual bool write_depth() const { return true; }
 
     virtual void setup_triangle(const vertex tri[3]) {}
 

@@ -15,6 +15,7 @@
 #include <tracy/Tracy.hpp>
 
 #include "engine/render_system.h"
+#include "resources/font/font.h"
 
 int main() {
     platform::init();
@@ -33,6 +34,8 @@ int main() {
 
     model m("resources/diablo3_pose.obj");
     material_textured tex_material(texture("resources/diablo3_pose_diffuse.tga"));
+    font font("resources/font/xd.fnt", "resources/font/xd.png");
+
 
     constexpr auto bg_color = color(0x6095eb);
     constexpr auto txt_color = color(0xff0000);
@@ -40,7 +43,7 @@ int main() {
     const auto rend = renderer::create_renderer(&w, renderer_type::SOFTWARE);
 
     auto cam = camera();
-    cam.pos = {10.75, 0.0, 20};
+    cam.pos = {9, 5.5, 37};
     // cam.pos = {0, 0, 2};
 
     cam.set_perspective(60.0 * std::numbers::pi / 180.0, static_cast<double>(width) / static_cast<double>(height), 0.1, 1000);
@@ -58,14 +61,30 @@ int main() {
     // floating_text text("yo wassup", color(0xFF0000), t);
 
     render_system render_system;
-    u32 test = render_system.register_entry(render_entry{.mesh = &m, .material = &tex_material });
+    // u32 test = render_system.register_entry(render_entry{.mesh = &m, .material = &tex_material });
 
-    for (i32 i = 0; i < 100; i++) {
-        auto entry = render_system.register_entry(render_entry{.mesh = &m, .material = &tex_material });
-        t.position.x += 2.0;
+    auto txt = font.generate_text_mesh("    BSRenderer\nMade by Kapilarny");
+    auto hello_text = render_system.register_entry(render_entry{.mesh = &txt, .material = font.get_material() });
+    auto& text_trans = render_system.get_transform(hello_text);
+    text_trans.scale = {0.01, 0.01, 0.01};
+    text_trans.position = {6.75, 5.5, 30};
 
-        render_system.get_transform(entry).position.x = t.position.x;
+    for (i32 i = 0; i < 10; i++) {
+        for (i32 j = 0; j < 10; j++) {
+            auto entry = render_system.register_entry(render_entry{.mesh = &m, .material = &tex_material });
+            auto& trans = render_system.get_transform(entry);
+            trans.position = t.position;
+
+            t.position.x += 2.0;
+        }
+        t.position.z += 2.0;
+        t.position.x = 0;
     }
+
+    model fps_text = font.generate_text_mesh("BSRenderer");
+    transform fps_transform = {};
+    fps_transform.position = {20, 20, 0};
+
 
     while (!w.should_close()) {
         ZoneScopedN("Main loop");
@@ -80,7 +99,7 @@ int main() {
         }
 
         if (input.get_key_state(keyboard_key::T) == key_state::PRESSED) {
-            render_system.get_transform(test).position.z += 2.0;
+            // render_system.get_transform(test).position.z += 2.0;
         }
 
         double forward = input.is_key_down(keyboard_key::W) - input.is_key_down(keyboard_key::S);
@@ -98,6 +117,7 @@ int main() {
 
         render_system.draw_all(rend.get());
 
+        // rend->set_projection_mode(true);
         // rend->blit_text("bsrenderer", 10, 80, txt_color);
         // rend->blit_text("frametime: " + std::to_string(last_frame_ms), 10, 10, txt_color);
         rend->end_frame();

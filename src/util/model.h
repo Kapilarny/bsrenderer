@@ -18,7 +18,6 @@ class model {
 public:
     explicit model(const std::string& model_path);
 
-
     const vec3<float>& get_vertex(const i32 idx) const {
         return _vertices[idx];
     }
@@ -38,6 +37,8 @@ public:
     [[nodiscard]] u64 vertex_count() const { return _vertices.size(); }
     [[nodiscard]] u64 face_count() const { return _indices.vertexes.size() / 3;};
 private:
+    model() = default;
+
     std::vector<vec3<float>> _vertices;
     std::vector<vec2<float>> _uvs;
 
@@ -46,6 +47,7 @@ private:
         std::vector<i32> vertexes, uvs, normals;
     } _indices;
 
+    friend class font;
     friend class waveform_parser;
     friend class software_renderer; // todo: maybe don't do that?
 };

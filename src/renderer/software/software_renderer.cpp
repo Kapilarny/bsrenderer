@@ -33,6 +33,7 @@ software_renderer::~software_renderer() {
 void software_renderer::begin_frame() {
     _fb = _window->begin_frame();
     _depth_buffer.clear();
+    set_projection_mode(false);
 }
 
 void software_renderer::end_frame() {
@@ -49,6 +50,24 @@ void software_renderer::clear_screen(const color clr) {
 
     DEBUG_ASSERT(_fb, "software_renderer::clear_screen() -> Attempt to draw without framebuffer!");
     _fb->clear_buffer(clr.to_argb());
+}
+
+void software_renderer::set_projection_mode(bool orthogonal) {
+    const auto width = _fb->get_width();
+    const auto height = _fb->get_height();
+
+    _orthogonal = orthogonal;
+
+    if (orthogonal) {
+        _projection = {
+            2.0f / width, 0, 0, -1,
+            0, -2.0f / height, 0, 1,
+            0, 0, -1, 0,
+            0, 0, 0, 1
+        };
+    } else {
+        _projection = _cam->_projection;
+    }
 }
 
 void software_renderer::draw_model(const model* mdl, imaterial* material, const mat<4,4>& mat) {
@@ -189,7 +208,7 @@ std::vector<raster_triangle> software_renderer::create_raster_triangles
     auto shader = material->get_shader();
     auto model_view = _cam->_view * mat;
 
-    shader->setup(mdl, {&model_view, &_cam->_projection});
+    shader->setup(mdl, {&model_view, &_projection});
 
     const u32 face_count = mdl->face_count();
     const u32 worker_count = std::min<u32>(_thread_pool.get_allocated_thread_count(), face_count);
@@ -257,6 +276,8 @@ void software_renderer::rasterize_tiled_triangle(const raster_triangle &tri, u32
 
     shader->setup_triangle(tri.tri);
 
+    bool write_depth = shader->write_depth();
+
     for (u32 y = y_start; y <= y_end; y++) {
         const vec2<float> start = {
             static_cast<float>(x_start),
@@ -278,7 +299,12 @@ void software_renderer::rasterize_tiled_triangle(const raster_triangle &tri, u32
                 if (z < _depth_buffer.at(x, y)) {
                     _depth_buffer.at(x, y) = z;
 
-                    pixels[(height-y-1)*width+x] = clr.to_argb();
+                    if (clr.a == 255) {
+                        pixels[(height-y-1)*width+x] = clr.to_argb();
+                    } else {
+                        color dst = color(pixels[(height-y-1)*width + x]);
+                        pixels[(height-y-1)*width+x] = dst.blend(clr).to_argb();
+                    }
                 }
             }
 

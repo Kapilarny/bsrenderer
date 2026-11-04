@@ -33,6 +33,18 @@ struct color {
     explicit constexpr color(const u32 r, const u32 g, const u32 b) : r(r), g(g), b(b), a(255) {}
     explicit constexpr color(const u32 r, const u32 g, const u32 b, const u32 a) : r(r), g(g), b(b), a(a) {}
 
+    color blend(const color& c) const {
+        const float alpha = c.a / 255.0f;
+        const float inv_alpha = 1.0f - alpha;
+
+        return color(
+            r * alpha + r * inv_alpha,
+            g * alpha + g * inv_alpha,
+            b * alpha + b * inv_alpha,
+            255
+        );
+    }
+
     [[nodiscard]] u32 to_argb() const {
         return a << 24 | r << 16 | g << 8 | b;
     }
@@ -65,6 +77,7 @@ public:
     virtual void attach_camera(camera* cam) = 0;
 
     virtual void draw_model(const model* model, imaterial* material, const mat<4,4>& mat) = 0;
+    virtual void set_projection_mode(bool orthogonal) = 0;
 protected:
     window* _window;
 };
