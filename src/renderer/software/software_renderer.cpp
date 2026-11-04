@@ -64,6 +64,8 @@ void software_renderer::draw_model(const model* mdl, imaterial* material, const 
 
     auto tris = create_raster_triangles(mdl, material, mat);
 
+    if (tris.empty()) return;
+
     // Bin
     const u32 cells_x = (width + CELL_SIZE - 1) / CELL_SIZE;
     const u32 cells_y = (height + CELL_SIZE - 1) / CELL_SIZE;
@@ -227,7 +229,7 @@ std::vector<raster_triangle> software_renderer::create_raster_triangles
     tris.reserve(total);
 
     for (const auto& local : local_tris) {
-        tris.insert(tris.end(), std::make_move_iterator(local.begin()), std::make_move_iterator(local.end()));
+        tris.insert(tris.end(), local.begin(), local.end());
     }
 
     return tris;
