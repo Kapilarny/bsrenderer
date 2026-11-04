@@ -70,18 +70,18 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(tracy)
 
 
-set(TRACY_ENABLE ON CACHE BOOL "" FORCE)
-set(TRACY_DISABLE OFF CACHE BOOL "" FORCE)
+#set(TRACY_ENABLE OFF CACHE BOOL "" FORCE)
+#set(TRACY_DISABLE ON CACHE BOOL "" FORCE)
 set(TRACY_ON_DEMAND OFF CACHE BOOL "" FORCE)
 set(TRACY_NO_EXIT OFF CACHE BOOL "" FORCE)
 
 target_compile_options(bsrenderer PRIVATE
     $<$<CONFIG:Release>:-O3>
-    $<$<CONFIG:Release>:-march=native>
+    $<$<CONFIG:Release>:-march=x86-64-v3>
     $<$<CONFIG:RelWithDebInfo>:-O3>
     $<$<CONFIG:RelWithDebInfo>:-march=native>
     $<$<CONFIG:RelWithDebInfo>:-g>
-#    $<$<CXX_COMPILER_ID:GNU>:-fopt-info-vec-optimized>
+    $<$<CXX_COMPILER_ID:GNU>:-fopt-info-vec-optimized>
 #    $<$<CXX_COMPILER_ID:GNU>:-fopt-info-vec-missed>
 )
 
@@ -90,7 +90,7 @@ set(PLATFORM_LIBS)
 if(WIN32)
     list(APPEND PLATFORM_LIBS user32 gdi32)
 elseif(LINUX)
-    list(APPEND PLATFORM_LIBS wayland-client m)
+    list(APPEND PLATFORM_LIBS wayland-client)
 endif()
 
 target_include_directories(bsrenderer PUBLIC "src/")
