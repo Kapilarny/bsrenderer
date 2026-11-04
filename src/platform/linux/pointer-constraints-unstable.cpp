@@ -23,6 +23,8 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
+#include "defines.h"
+#ifdef BSRENDERER_LINUX
 
 #include <stdbool.h>
 #include <stdlib.h>
@@ -107,3 +109,4 @@ WL_PRIVATE const struct wl_interface zwp_confined_pointer_v1_interface = {
 	2, zwp_confined_pointer_v1_events,
 };
 
+#endif

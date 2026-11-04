@@ -117,7 +117,6 @@ void software_renderer::draw_model(const model* mdl, imaterial* material, const 
 }
 
 void software_renderer::prepare_triangle_for_raster(const vertex clipped[3], std::vector<raster_triangle>& tris) const {
-    ZoneScoped;
     const auto width = _fb->get_width();
     const auto height = _fb->get_height();
     const auto viewport = _cam->_viewport;
@@ -169,7 +168,7 @@ void software_renderer::prepare_triangle_for_raster(const vertex clipped[3], std
 }
 
 void software_renderer::clip_triangle_and_prepare_raster(const triangle tri, std::vector<raster_triangle>& tris) {
-    ZoneScoped;
+    // ZoneScoped;
     const auto polygon = triangle_clip::clip_triangle(tri);
 
     for (i32 i = 1; i + 1 < polygon.count; i++) {
@@ -185,7 +184,7 @@ void software_renderer::clip_triangle_and_prepare_raster(const triangle tri, std
 
 std::vector<raster_triangle> software_renderer::create_raster_triangles
     (const model *mdl, imaterial* material, const mat<4, 4> &mat) {
-    ZoneScoped;
+    // ZoneScoped;
 
     auto shader = material->get_shader();
     auto model_view = _cam->_view * mat;
@@ -289,7 +288,7 @@ void software_renderer::rasterize_tiled_triangle(const raster_triangle &tri, u32
 }
 
 void software_renderer::draw_primitive(triangle clip, ishader* shader) {
-    ZoneScoped;
+    // ZoneScoped;
     const auto polygon = triangle_clip::clip_triangle(clip);
 
     for (i32 i = 1; i + 1 < polygon.count; i++) {
@@ -304,7 +303,7 @@ void software_renderer::draw_primitive(triangle clip, ishader* shader) {
 }
 
 void software_renderer::rasterize_triangle(const vertex tri[3], ishader* shader) {
-    ZoneScoped;
+    // ZoneScoped;
     const vec4<float> ndc[3] = { tri[0].pos/tri[0].pos.w, tri[1].pos/tri[1].pos.w, tri[2].pos/tri[2].pos.w };
 
     const auto& viewport = _cam->_viewport;
